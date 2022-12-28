@@ -1,6 +1,10 @@
 import requests
 from args import ObtainFolios, GuiaDespachoDocumento, SobreCaratula, InfoEnvio
-from fastapi import FastAPI
+import firebase_admin
+from firebase_admin import credentials
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import PlainTextResponse
+from fastapi.exceptions import RequestValidationError
 from functions import (
     auth_to_base64,
     certificate_file,
@@ -12,8 +16,15 @@ from functions import (
     get_xml_file,
 )
 
+firebase_admin.initialize_app()
+
 app = FastAPI()
 AUTH = auth_to_base64()
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    return PlainTextResponse(str(exc), status_code=400)
 
 
 @app.get("/")
@@ -47,8 +58,8 @@ def obtain_new_folios(
         files = [certificate_file(rut_empresa)]
         headers = {"Authorization": AUTH}
         response = requests.post(url, headers=headers, data=payload, files=files)
-        if response.status_code == 200:
-            string_to_xml(response.text, rut_empresa, caf_count, "CAF")
+        # if response.status_code == 200:
+        #     string_to_xml(response.text, rut_empresa, caf_count, "CAF")
         return {
             "status_code": response.status_code,
             "reason": response.reason,
@@ -118,16 +129,28 @@ def generate_dte_guiadespacho(rut_empresa: int, document: GuiaDespachoDocumento)
         if response.status_code == 200:
             # ACA YA PODRIAMOS CREAR EL OBJETO DTE Y GUARDARLO EN FIRESTORE
             # CON UN FLAG DE QUE AUN NO HA SIDO ENVIADO
-            string_to_xml(response.text, rut_empresa, NumFolio, "GD")
-        return {
-            "status_code": response.status_code,
-            "reason": response.reason,
-            "text": response.text,
-        }
+            url = string_to_xml(response.text, rut_empresa, NumFolio, "GD")
+            return {
+                "status_code": response.status_code,
+                "message": "DTE generado correctamente",
+                "url": url,
+            }
+        else:
+            return {
+                "status_code": response.status_code,
+                "message": response.reason,
+            }
+
     except requests.exceptions.RequestException as e:
+        return {
+            "message": str(e),
+        }
         raise SystemExit(e)
     except Exception as e:
-        raise SystemExit(e)
+        return {
+            "message": str(e),
+        }
+        # raise SystemExit(e)
 
 
 # Se genera un sobre de envio DTE a partir de los numeros de folio que
@@ -157,15 +180,15 @@ def generate_sobre(rut_empresa: int, caratula_info: SobreCaratula):
         headers = {"Authorization": AUTH}
         response = requests.post(url, headers=headers, data=payload, files=files)
         # Este numero hay que obtenerlo de base de datos tambien
-        if response.status_code == 200:
-            # ACA YA PODRIAMOS CREAR EL OBJETO DTE Y GUARDARLO EN FIRESTORE
-            # CON UN FLAG DE QUE AUN NO HA SIDO ENVIADO
-            string_to_xml(
-                response.text,
-                rut_empresa,
-                sobre_count_siguiente,
-                "SOBRE",
-            )
+        # if response.status_code == 200:
+        #     # ACA YA PODRIAMOS CREAR EL OBJETO DTE Y GUARDARLO EN FIRESTORE
+        #     # CON UN FLAG DE QUE AUN NO HA SIDO ENVIADO
+        #     string_to_xml(
+        #         response.text,
+        #         rut_empresa,
+        #         sobre_count_siguiente,
+        #         "SOBRE",
+        #     )
         return {
             "status_code": response.status_code,
             "reason": response.reason,

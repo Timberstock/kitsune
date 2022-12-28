@@ -4,12 +4,26 @@ from dotenv import load_dotenv
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from google.cloud import storage
 
 # from xml.etree import ElementTree as ET
 import lxml.etree as ET
 from pydantic import BaseModel
 
 load_dotenv()
+
+
+def upload_to_bucket(
+    file_to_upload, file_name, bucket_name=os.getenv("FIREBASE_BUCKET")
+):
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(bucket_name)
+    blob = bucket.blob(file_name)
+    blob.upload_from_string(file_to_upload, content_type="application/xml")
+    blob.make_public()
+    print(blob.public_url)
+    return blob.public_url
+
 
 # This function is used to decrypt the password from PostgreSQL db
 def decrypt_password(encrypted_password):
@@ -91,9 +105,12 @@ def string_to_xml(xml_string, rut_empresa, count, document_type):
     elif document_type == "SOBRE":
         filename = "SOBRE_" + rut_empresa[:-1] + "n" + str(count) + ".xml"
 
-    with open("files/" + filename, "wb") as f:
-        text = ET.tostring(tree, encoding="latin1")
-        f.write(text)
+    string = ET.tostring(tree, encoding="latin1")
+    url = upload_to_bucket(
+        string,
+        filename,
+    )
+    return url
 
 
 # This function is used to convert the PathParam rut_empresa into a string
