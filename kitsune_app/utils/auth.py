@@ -1,5 +1,6 @@
 import base64
 
+
 def auth_to_base64(key):
     """Convert the API key into a base64 string"""
 

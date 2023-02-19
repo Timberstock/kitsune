@@ -3,19 +3,23 @@ import requests  # type: ignore
 
 from fastapi import APIRouter, Depends
 
+from kitsune_app.dependencies.context import empresa_context
+from kitsune_app.schemas import EmpresaContext
+from kitsune_app.schemas.dte import (
+    GuiaDespachoDocumento,
+    InfoEnvio,
+    ObtainFoliosIn,
+    SobreCaratula,
+)
 from kitsune_app.settings import AUTH, FIREBASE_BUCKET
 from kitsune_app.utils import (
     certificate_file,
     clean_null_terms,
     document_to_dict,
-    get_xml_file,
     empresa_id_to_rut_empresa,
+    get_xml_file,
     string_to_xml,
 )
-
-from kitsune_app.schemas.dte import GuiaDespachoDocumento, InfoEnvio, ObtainFoliosIn, SobreCaratula
-from kitsune_app.dependencies.context import empresa_context
-from kitsune_app.schemas import EmpresaContext
 
 
 router = APIRouter(tags=["SII"])
@@ -25,8 +29,8 @@ router = APIRouter(tags=["SII"])
 @router.post("/folios/{empresa_id}")
 def obtain_new_folios(
     obtain_folios_args: ObtainFoliosIn,
-    context: EmpresaContext = Depends(empresa_context)
-):  
+    context: EmpresaContext = Depends(empresa_context),
+):
     empresa_id = context.empresa_id
     certificate = context.pfx_certificate
     folios_amount = obtain_folios_args.amount
@@ -38,7 +42,7 @@ def obtain_new_folios(
             "RutEmpresa": empresa_id_to_rut_empresa(empresa_id),
             "Ambiente": 0,
         }
-        
+
         # TODO: should be retrieved according to the folio number instead
         # caf_count
 
@@ -62,9 +66,7 @@ def obtain_new_folios(
 
 # GET 127.0.0.1:8000/folios/770685532
 @router.get("/folios/{empresa_id}")
-def available_folios(
-    context: EmpresaContext = Depends(empresa_context)
-):
+def available_folios(context: EmpresaContext = Depends(empresa_context)):
     try:
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
@@ -92,7 +94,9 @@ def available_folios(
 
 # Genera un DTE Guia de Despacho en un archivo .xml
 @router.post("/dte/{empresa_id}")
-def generate_dte_guiadespacho(document: GuiaDespachoDocumento, context: EmpresaContext = Depends(empresa_context)):
+def generate_dte_guiadespacho(
+    document: GuiaDespachoDocumento, context: EmpresaContext = Depends(empresa_context)
+):
     try:
         guia_despacho = document_to_dict(document)
         guia_despacho = clean_null_terms(guia_despacho)
@@ -139,7 +143,9 @@ def generate_dte_guiadespacho(document: GuiaDespachoDocumento, context: EmpresaC
 # Se genera un sobre de envio DTE a partir de los numeros de folio que
 # aun no han sido enviados
 @router.post("/sobre/{empresa_id}")
-def generate_sobre(caratula_info: SobreCaratula, context: EmpresaContext = Depends(empresa_context)):
+def generate_sobre(
+    caratula_info: SobreCaratula, context: EmpresaContext = Depends(empresa_context)
+):
     try:
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
@@ -184,7 +190,9 @@ def generate_sobre(caratula_info: SobreCaratula, context: EmpresaContext = Depen
 # cuando se trata de problemas de servidor, token, etc hay que settearlo
 # para que se vuelva a intentar hasta que funcione o envie un error de schema
 @router.post("/sobre/{empresa_id}/enviar")
-def enviar_sobre(info_envio_body: InfoEnvio, context: EmpresaContext = Depends(empresa_context)):
+def enviar_sobre(
+    info_envio_body: InfoEnvio, context: EmpresaContext = Depends(empresa_context)
+):
     try:
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate

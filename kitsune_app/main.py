@@ -1,13 +1,11 @@
-import firebase_admin  # type: ignore
-
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import PlainTextResponse
 
-from .routers import sii_router
 from .middlewares import EmpresaContextMiddleware
-
+from .routers import sii_router
 from .setup import firebase_setup
+
 
 firebase_setup()
 app = FastAPI()

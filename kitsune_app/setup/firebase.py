@@ -1,23 +1,27 @@
 from contextvars import ContextVar
-import firebase_admin
+
+import firebase_admin  # type: ignore
+
 from firebase_admin import firestore
 
 
 db = ContextVar("Firestore_Database_Client", default=None)
 
+
 def _initialize_firestore_client():
     _db = firebase_admin.firestore.client()
     db.set(_db)
-    
-    
+
+
 def firestore_client() -> firestore.client:
     """
     Returns the firestore database client in the actual context.
-    
+
     Not sure if this is the best approach, maybe using multiple clients for paralelism
-    would be better.    
+    would be better.
     """
     return db.get()
+
 
 def firebase_setup():
     """
