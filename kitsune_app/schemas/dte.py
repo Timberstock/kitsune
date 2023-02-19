@@ -1,4 +1,7 @@
+from typing import Optional
+
 from pydantic import BaseModel
+
 
 # ENVIAR SOBRE
 class InfoEnvio(BaseModel):
@@ -8,14 +11,14 @@ class InfoEnvio(BaseModel):
 
 # GENERAR SOBRE
 class SobreCaratula(BaseModel):
-    RutEmisor: str = None
+    RutEmisor: Optional[str] = None
     RutReceptor: str = "60803000-K"
     FechaResolucion: str
     NumeroResolucion: int = 0
 
 
 # OBTAIN FOLIOS
-class ObtainFolios(BaseModel):
+class ObtainFoliosIn(BaseModel):
     amount: int = 5
 
 
@@ -24,13 +27,21 @@ class IdentificacionDTE(BaseModel):
     TipoDTE: int = 52
     Folio: int
     FechaEmision: str
-    TipoTraslado: int = 1  # 1: constituye venta, 2: venta por efectuar, 3: consignación, 4: entrega gratuita, 5: traslados internos, 6: otros traslados no venta, 7: guia de devolucion, 8: traslado exportacion, 9: venta exportacion
-    TipoDespacho: int = 2  # 1: por cuenta del receptor, 2 por cuenta del emisor a instalaciones cliente, 3 por cuenta emisor a otras instalaciones
-    FormaPago: int = 2  # opcional 1: contado, 2: credito, 3: gratis
+    TipoTraslado: int = 1  # 1: constituye venta, 2: venta por efectuar, 3: consignación
+    # 4: entrega gratuita, 5: traslados internos,
+    # 6: otros traslados no venta, 7: guia de devolucion,
+    # 8: traslado exportacion, 9: venta exportacion
+    TipoDespacho: int = 2  # 1: por cuenta del receptor,
+    # 2 por cuenta del emisor a instalaciones cliente,
+    # 3 por cuenta emisor a otras instalaciones
+    FormaPago: int = (
+        2  # opcional 1: contado, 2: credito, 3: gratis / no se estila ponerlo
+    )
     # TpoImpresion: str, no sé cuándo va
     # TpoTranCompra: int, opcional
     # Varios opcionales mas: FmaPagExp, FchCancel, MntCancel, SaldoInsol
-    # MntPagos: list, tabla pagos (opcional creo). Si se usa, obligatorios: FchPago, MntPago
+    # MntPagos: list, tabla pagos (opcional creo). Si se usa,
+    #                               obligatorios: FchPago, MntPago
 
 
 class Emisor(BaseModel):
@@ -40,8 +51,8 @@ class Emisor(BaseModel):
     ActividadEconomica: list
     DireccionOrigen: str
     ComunaOrigen: str
-    Telefono: list = None
-    CorreoElectronico: str = None
+    Telefono: Optional[list] = None
+    CorreoElectronico: Optional[str] = None
 
 
 class Receptor(BaseModel):
@@ -54,9 +65,9 @@ class Receptor(BaseModel):
 
 class Totales(BaseModel):
     MontoNeto: int
-    MontoExento: int = None
+    MontoExento: Optional[int] = None
     TasaIVA: int = 19
-    Iva: int = None
+    Iva: Optional[int] = None
     MontoTotal: int
 
 
@@ -77,11 +88,11 @@ class Transporte(BaseModel):
 class DetalleItem(BaseModel):
     IndicadorExento: int
     Nombre: str
-    Descripcion: str = None
+    Descripcion: Optional[str] = None
     Cantidad: int
     Precio: int
-    Descuento: int = None
-    Recargo: int = None
+    Descuento: Optional[int] = None
+    Recargo: Optional[int] = None
     MontoItem: int
 
 
@@ -89,7 +100,7 @@ class ReferenciasItem(BaseModel):
     TipoDocumento: int
     FolioReferencia: int
     FechaDocumentoReferencia: str
-    CodigoReferencia: int = None
+    CodigoReferencia: Optional[int] = None
     RazonReferencia: str
 
 
@@ -98,7 +109,7 @@ class Referencias(BaseModel):
 
 
 class DescuentosRecargos(BaseModel):
-    Descripcion: str = None
+    Descripcion: Optional[str] = None
     TipoMovimiento: str
     TipoValor: str
     Valor: float
@@ -115,5 +126,5 @@ class Encabezado(BaseModel):
 class GuiaDespachoDocumento(BaseModel):
     Encabezado: Encabezado
     Detalles: list
-    Referencias: list = None
-    DescuentosRecargos: list = None
+    Referencias: Optional[list] = None
+    DescuentosRecargos: Optional[list] = None
