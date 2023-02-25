@@ -123,7 +123,7 @@ class Encabezado(BaseModel):
     Transporte: Transporte
 
 
-class GuiaDespachoDocumento(BaseModel):
+class GuiaDespachoDocumentoIn(BaseModel):
     Encabezado: Encabezado
     Detalles: list
     Referencias: Optional[list] = None

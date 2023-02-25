@@ -1,2 +1,2 @@
 from .context import EmpresaContext
-from .dte import GuiaDespachoDocumento, InfoEnvio, ObtainFoliosIn, SobreCaratula
+from .dte import GuiaDespachoDocumentoIn, InfoEnvio, ObtainFoliosIn, SobreCaratula

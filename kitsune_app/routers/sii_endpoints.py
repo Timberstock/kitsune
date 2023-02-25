@@ -3,10 +3,10 @@ import requests  # type: ignore
 
 from fastapi import APIRouter, Depends
 
-from kitsune_app.dependencies.context import empresa_context
+from kitsune_app.dependencies.sii import empresa_context, document_to_guia
 from kitsune_app.schemas import EmpresaContext
 from kitsune_app.schemas.dte import (
-    GuiaDespachoDocumento,
+    GuiaDespachoDocumentoIn,
     InfoEnvio,
     ObtainFoliosIn,
     SobreCaratula,
@@ -14,11 +14,9 @@ from kitsune_app.schemas.dte import (
 from kitsune_app.settings import AUTH, FIREBASE_BUCKET
 from kitsune_app.utils import (
     certificate_file,
-    clean_null_terms,
-    document_to_dict,
     empresa_id_to_rut_empresa,
-    get_xml_file,
-    string_to_xml,
+    get_xml_file_tuple_for_request,
+    upload_xml_string_to_bucket,
 )
 
 
@@ -36,7 +34,6 @@ def obtain_new_folios(
     folios_amount = obtain_folios_args.amount
     try:
         url = f"https://servicios.simpleapi.cl/api/folios/get/52/{folios_amount}"
-
         body = {
             **certificate,
             "RutEmpresa": empresa_id_to_rut_empresa(empresa_id),
@@ -45,14 +42,13 @@ def obtain_new_folios(
 
         # TODO: should be retrieved according to the folio number instead
         # caf_count
-
         payload = {"input": str(dict(body))}
         files = [certificate_file(empresa_id)]
         headers = {"Authorization": AUTH}
         # TODO: use httpx instead of requests
         response = requests.post(url, headers=headers, data=payload, files=files)
         # if response.status_code == 200:
-        #     string_to_xml(response.text, empresa_id, caf_count, "CAF")
+        #     upload_xml_string_to_bucket(response.text, empresa_id, caf_count, "CAF")
         return {
             "status_code": response.status_code,
             "reason": response.reason,
@@ -95,30 +91,41 @@ def available_folios(context: EmpresaContext = Depends(empresa_context)):
 # Genera un DTE Guia de Despacho en un archivo .xml
 @router.post("/dte/{empresa_id}")
 def generate_dte_guiadespacho(
-    document: GuiaDespachoDocumento, context: EmpresaContext = Depends(empresa_context)
+    document: GuiaDespachoDocumentoIn,
+    guia_despacho: dict = Depends(document_to_guia),
+    context: EmpresaContext = Depends(empresa_context),
 ):
+    """
+    Main endpoint of the API, generates a DTE Guia de Despacho with
+    GuiaDespachoDocumento in the body of the request and returns an url for the DTE in
+    a .xml file if succeeds.
+    """
     try:
-        guia_despacho = document_to_dict(document)
-        guia_despacho = clean_null_terms(guia_despacho)
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
         url = "https://api.simpleapi.cl/api/v1/dte/generar"
         payload = {
             "input": str({"Documento": guia_despacho, "Certificado": certificate})
         }
-        NumFolio = guia_despacho["Encabezado"]["IdentificacionDTE"]["Folio"]
-        caf_count = 1
+        folio = int(guia_despacho["Encabezado"]["IdentificacionDTE"]["Folio"])
         files = [
             certificate_file(empresa_id),
-            get_xml_file(empresa_id, "CAF", caf_count),
+            get_xml_file_tuple_for_request(empresa_id, "CAF", folio, FIREBASE_BUCKET),
         ]
         headers = {"Authorization": AUTH}
         # TODO: use httpx instead of requests
         response = requests.post(url, headers=headers, data=payload, files=files)
+        # print(response.status_code)
+        # print(response.reason)
+        # print(response.text)
         if response.status_code == 200:
-            url = string_to_xml(
-                response.text, empresa_id, NumFolio, "GD", FIREBASE_BUCKET
+            guia_xml = response.text
+            url = upload_xml_string_to_bucket(
+                empresa_id, guia_xml, folio, "GD", FIREBASE_BUCKET
             )
+            print(url)
+            # return JSONResponse(status_code=status.HTTP_201_CREATED,
+            #                     content=response_dict)
             return {
                 "status_code": response.status_code,
                 "message": "DTE generado correctamente",
@@ -134,6 +141,7 @@ def generate_dte_guiadespacho(
         return {
             "message": str(e),
         }
+
     except Exception as e:
         return {
             "message": str(e),
@@ -160,7 +168,7 @@ def generate_sobre(
         folios_sin_enviar = [6]
         files = [certificate_file(empresa_id)]
         for folio in folios_sin_enviar:
-            files.append(get_xml_file(empresa_id, "GD", folio))
+            files.append(get_xml_file_tuple_for_request(empresa_id, "GD", folio))
         headers = {"Authorization": AUTH}
         # TODO: use httpx instead of requests
         response = requests.post(url, headers=headers, data=payload, files=files)
@@ -168,7 +176,7 @@ def generate_sobre(
         # if response.status_code == 200:
         #     # ACA YA PODRIAMOS CREAR EL OBJETO DTE Y GUARDARLO EN FIRESTORE
         #     # CON UN FLAG DE QUE AUN NO HA SIDO ENVIADO
-        #     string_to_xml(
+        #     upload_xml_string_to_bucket(
         #         response.text,
         #         empresa_id,
         #         sobre_count_siguiente,
@@ -205,7 +213,7 @@ def enviar_sobre(
         sobre_a_enviar = 4
         files = [
             certificate_file(empresa_id),
-            get_xml_file(empresa_id, "SOBRE", sobre_a_enviar),
+            get_xml_file_tuple_for_request(empresa_id, "SOBRE", sobre_a_enviar),
         ]
         headers = {"Authorization": AUTH}
         # TODO: use httpx instead of requests
