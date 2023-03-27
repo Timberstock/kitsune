@@ -11,7 +11,6 @@ from kitsune_app.schemas.dte import (
     InfoEnvioIn,
     ObtainFoliosIn,
     GenerateSobreIn,
-    Caratula
 )
 from kitsune_app.settings import AUTH, FIREBASE_BUCKET
 from kitsune_app.utils import (
@@ -114,7 +113,9 @@ def generate_dte_guiadespacho(
         folio = int(guia_despacho["Encabezado"]["IdentificacionDTE"]["Folio"])
         files = [
             certificate_file(empresa_id),
-            get_xml_file_tuple_for_request(empresa_id, "CAF", FIREBASE_BUCKET, folio_or_sobre_count=folio),
+            get_xml_file_tuple_for_request(
+                empresa_id, "CAF", FIREBASE_BUCKET, folio_or_sobre_count=folio
+            ),
         ]
         headers = {"Authorization": AUTH}
         # TODO: use httpx instead of requests
@@ -157,9 +158,10 @@ def generate_dte_guiadespacho(
 
 @router.post("/sobre/{empresa_id}")
 def generate_sobre(
-    generate_sobre_params: GenerateSobreIn, context: EmpresaContext = Depends(empresa_context)
+    generate_sobre_params: GenerateSobreIn,
+    context: EmpresaContext = Depends(empresa_context),
 ):
-    """ 
+    """
     Generates a Sobre DTE with the folios that have not been sent yet, stores it in
     the firebase bucket and returns its url.
     It handles the corresponding number of Sobre by looking at the firestore Sobres
@@ -181,7 +183,11 @@ def generate_sobre(
         folios_sin_enviar = generate_sobre_params.folios
         files = [certificate_file(empresa_id)]
         for folio in folios_sin_enviar:
-            files.append(get_xml_file_tuple_for_request(empresa_id, "GD", FIREBASE_BUCKET, folio_or_sobre_count= folio))
+            files.append(
+                get_xml_file_tuple_for_request(
+                    empresa_id, "GD", FIREBASE_BUCKET, folio_or_sobre_count=folio
+                )
+            )
         print(f"payload: {payload}")
         print(f"files: {files}")
         headers = {"Authorization": AUTH}
@@ -239,7 +245,9 @@ def enviar_sobre(
         url = "https://api.simpleapi.cl/api/v1/envio/enviar"
         files = [
             certificate_file(empresa_id),
-            get_xml_file_tuple_for_request(empresa_id, "SOBRE", FIREBASE_BUCKET, date=sobre_date),
+            get_xml_file_tuple_for_request(
+                empresa_id, "SOBRE", FIREBASE_BUCKET, date=sobre_date
+            ),
         ]
         headers = {"Authorization": AUTH}
         # TODO: use httpx instead of requests

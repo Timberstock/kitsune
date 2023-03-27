@@ -16,9 +16,11 @@ class Caratula(BaseModel):
     FechaResolucion: str
     RutReceptor: str = "60803000-K"
     NumeroResolucion: int = 0
+
+
 class GenerateSobreIn(BaseModel):
-    folios : list
-    caratula : Caratula
+    folios: list
+    caratula: Caratula
 
 
 # OBTAIN FOLIOS

@@ -3,11 +3,10 @@ from datetime import datetime
 import lxml.etree as ET
 
 from google.cloud import storage  # type: ignore
-import io
 
 
 def get_xml_file_tuple_for_request(
-    empresa_id, file_type, bucket_name, folio_or_sobre_count = 0, CAF_step=5, date=None
+    empresa_id, file_type, bucket_name, folio_or_sobre_count=0, CAF_step=5, date=None
 ):
     """Open the .xml file from cloud storage and return it in buffer"""
     if file_type == "CAF":
@@ -16,14 +15,13 @@ def get_xml_file_tuple_for_request(
     elif file_type == "GD":
         file_name = f"DTE_GD_{empresa_id}f{folio_or_sobre_count}.xml"
     elif file_type == "SOBRE":
-        date = datetime.strptime(date, '%Y-%m-%d').date()
+        date = datetime.strptime(date, "%Y-%m-%d").date()
         file_name = f"SOBRE_{empresa_id}d{date.year}_{date.month}_{date.day}.xml"
     bucket_file = _read_from_bucket(file_name, bucket_name)
-    
+
     # This seems to be a way of reading the file from the bucket similar to open()
     # bucket_file = io.BytesIO(_read_from_bucket(file_name, bucket_name))
-    
-    
+
     # The following code is for testing purposes only
     # bucket_file_2 = open("files/" + file_name, "rb").read()
     # print(bucket_file == bucket_file_2)
@@ -69,8 +67,8 @@ def upload_xml_string_to_bucket(
     xml_string,
     document_type,
     firebase_bucket_name,  # parameter just for now
-    count = 0,
-    date = None,
+    count=0,
+    date=None,
 ):
     """
     Convert the XML string into a XML object, upload it to the bucket
