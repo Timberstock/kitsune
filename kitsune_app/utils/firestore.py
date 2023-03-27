@@ -36,7 +36,7 @@ def get_certificate_credentials(empresa_id: str, salt) -> dict:
     docs = doc_ref.get()
     doc = docs[0].to_dict()
     pfx_certificate_credentials = {
-        "RutCertificado": doc["rut_certificado"],
+        "Rut": doc["rut_certificado"],
         "Password": _decrypt_password(doc["password"].encode(), salt),
     }
     return pfx_certificate_credentials

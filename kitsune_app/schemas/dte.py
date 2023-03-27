@@ -4,17 +4,21 @@ from pydantic import BaseModel
 
 
 # ENVIAR SOBRE
-class InfoEnvio(BaseModel):
+class InfoEnvioIn(BaseModel):
+    sobres_dates: list = None
     Tipo: int = 1
     Ambiente: int = 0
 
 
 # GENERAR SOBRE
-class SobreCaratula(BaseModel):
+class Caratula(BaseModel):
     RutEmisor: Optional[str] = None
-    RutReceptor: str = "60803000-K"
     FechaResolucion: str
+    RutReceptor: str = "60803000-K"
     NumeroResolucion: int = 0
+class GenerateSobreIn(BaseModel):
+    folios : list
+    caratula : Caratula
 
 
 # OBTAIN FOLIOS
