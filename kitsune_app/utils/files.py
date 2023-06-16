@@ -6,17 +6,18 @@ from google.cloud import storage  # type: ignore
 
 
 def get_xml_file_tuple_for_request(
-    empresa_id, file_type, bucket_name, folio_or_sobre_count=0, CAF_step=5, date=None
+    empresa_id, file_type, bucket_name, folio_or_sobre_count=0, CAF_step=5, id=""
 ):
-    """Open the .xml file from cloud storage and return it in buffer"""
+    """Open the .xml file from cloud storage and return it in buffer.
+    Keep in mind that the CAF_step must be sync with the ObtainFoliosIn.amount in dte.py
+    """
     if file_type == "CAF":
         CAF_number = (folio_or_sobre_count - 1) // CAF_step
         file_name = f"CAF{empresa_id}n{CAF_number}.xml"
     elif file_type == "GD":
         file_name = f"DTE_GD_{empresa_id}f{folio_or_sobre_count}.xml"
     elif file_type == "SOBRE":
-        date = datetime.strptime(date, "%Y-%m-%d").date()
-        file_name = f"SOBRE_{empresa_id}d{date.year}_{date.month}_{date.day}.xml"
+        file_name = f"SOBRE_{id}.xml"
     bucket_file = _read_from_bucket(file_name, bucket_name)
 
     # This seems to be a way of reading the file from the bucket similar to open()
@@ -68,7 +69,7 @@ def upload_xml_string_to_bucket(
     document_type,
     firebase_bucket_name,  # parameter just for now
     count=0,
-    date=None,
+    id="",
 ):
     """
     Convert the XML string into a XML object, upload it to the bucket
@@ -81,7 +82,7 @@ def upload_xml_string_to_bucket(
     elif document_type == "GD":
         filename = f"DTE_GD_{empresa_id}f{count}.xml"
     elif document_type == "SOBRE":
-        filename = f"SOBRE_{empresa_id}d{date.year}_{date.month}_{date.day}.xml"
+        filename = f"SOBRE_{id}.xml"
 
     string = ET.tostring(tree, encoding="latin1")
     url = _upload_to_bucket(string, filename, firebase_bucket_name)

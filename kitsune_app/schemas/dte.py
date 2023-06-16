@@ -3,9 +3,19 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+# CONSULTAR ESTADO DTE
+class ConsultarEstadoDTEIn(BaseModel):
+    rut_receptor: str
+    folio: int
+    fecha_dte: str
+    monto: int
+    tipo_dte: int = 52
+    ambiente: int = 0
+
+
 # ENVIAR SOBRE
 class InfoEnvioIn(BaseModel):
-    sobres_dates: list = None
+    sobres_document_ids: list = None
     Tipo: int = 1
     Ambiente: int = 0
 
@@ -20,6 +30,7 @@ class Caratula(BaseModel):
 
 class GenerateSobreIn(BaseModel):
     folios: list
+    sobre_id: str
     caratula: Caratula
 
 

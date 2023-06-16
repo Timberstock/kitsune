@@ -11,6 +11,7 @@ from kitsune_app.schemas.dte import (
     InfoEnvioIn,
     ObtainFoliosIn,
     GenerateSobreIn,
+    ConsultarEstadoDTEIn,
 )
 from kitsune_app.settings import AUTH, FIREBASE_BUCKET
 from kitsune_app.utils import (
@@ -203,7 +204,7 @@ def generate_sobre(
                 response.text,
                 "SOBRE",
                 FIREBASE_BUCKET,
-                date=today,
+                id=generate_sobre_params.sobre_id,
             )
             return {
                 "status_code": response.status_code,
@@ -236,7 +237,7 @@ def enviar_sobre(
 ):
     try:
         # It will only be one in the meantime, but they can be several
-        sobre_date = info_envio_body.sobres_dates[0]
+        sobre_id = info_envio_body.sobres_document_ids[0]
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
         info_envio = dict(info_envio_body)
@@ -246,7 +247,7 @@ def enviar_sobre(
         files = [
             certificate_file(empresa_id),
             get_xml_file_tuple_for_request(
-                empresa_id, "SOBRE", FIREBASE_BUCKET, date=sobre_date
+                empresa_id, "SOBRE", FIREBASE_BUCKET, id=sobre_id
             ),
         ]
         headers = {"Authorization": AUTH}
@@ -297,6 +298,82 @@ def get_sobre_status(track_id: int, context: EmpresaContext = Depends(empresa_co
         response = requests.post(url, headers=headers, data=payload, files=files)
         if response.status_code == 200:
             # TODO: save the result in the firestore document if succesful or failed
+            print(response)
+            print(response.text)
+            pass
+        return {
+            "status_code": response.status_code,
+            "reason": response.reason,
+            "text": response.text,
+        }
+
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
+    except Exception as e:
+        raise SystemExit(e)
+
+
+@router.get("/dte/{empresa_id}/{folio}/validar")
+def get_validacion_dte(folio: int, context: EmpresaContext = Depends(empresa_context)):
+    try:
+        empresa_id = context.empresa_id
+        certificate = context.pfx_certificate
+        payload = {"input": "{Tipo:1}"}
+        files = [
+            get_xml_file_tuple_for_request(
+                empresa_id, "GD", FIREBASE_BUCKET, folio_or_sobre_count=folio
+            ),
+        ]
+        headers = {"Authorization": AUTH}
+        url = "https://api.simpleapi.cl/api/v1/consulta/validador"
+        response = requests.post(url, headers=headers, data=payload, files=files)
+        if response.status_code == 200:
+            # TODO: save the result in the firestore document if succesful or failed
+            print(response)
+            print(response.text)
+            pass
+        return {
+            "status_code": response.status_code,
+            "reason": response.reason,
+            "text": response.text,
+        }
+
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
+    except Exception as e:
+        raise SystemExit(e)
+
+
+@router.get("/dte/{empresa_id}/consultar-estado")
+def consultar_estado_dte(
+    params: ConsultarEstadoDTEIn, context: EmpresaContext = Depends(empresa_context)
+):
+    try:
+        print(params)
+        empresa_id = context.empresa_id
+        certificate = context.pfx_certificate
+        body = {
+            "Certificado": certificate,
+            "RutEmpresa": empresa_id_to_rut_empresa(empresa_id),
+            "RutReceptor": params.rut_receptor,
+            "Folio": params.folio,
+            "Total": params.monto,
+            "FechaDTE": params.fecha_dte,
+            "Tipo": params.tipo_dte,
+            "Ambiente": params.ambiente,
+            "ServidorBoletaREST": "false",
+        }
+        payload = {"input": str(body)}
+        files = [
+            certificate_file(empresa_id),
+        ]
+        headers = {"Authorization": AUTH}
+        url = "https://api.simpleapi.cl/api/v1/consulta/dte"
+        response = requests.post(url, headers=headers, data=payload, files=files)
+        if response.status_code == 200:
+            # TODO: save the result in the firestore document if succesful or failed
+            print(response)
+            print(response.text)
             pass
         return {
             "status_code": response.status_code,
