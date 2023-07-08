@@ -34,6 +34,11 @@ class EmpresaContextMiddleware:
         if scope["type"] not in ["http", "websocket"]:
             await self.app(scope, receive, send)
             return
+        
+        if scope["path"] == "/":
+            # if the request is for the root path, Skip middleware
+            await self.app(scope, receive, send)
+            return
 
         context_model = EmpresaContext()
 

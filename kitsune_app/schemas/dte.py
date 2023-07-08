@@ -140,8 +140,12 @@ class Encabezado(BaseModel):
     Transporte: Transporte
 
 
-class GuiaDespachoDocumentoIn(BaseModel):
+class Dte(BaseModel):
     Encabezado: Encabezado
     Detalles: list
     Referencias: Optional[list] = None
     DescuentosRecargos: Optional[list] = None
+
+class GenerateGuiaDespachoIn(BaseModel):
+    dte: Dte
+    pdf_html_string: str

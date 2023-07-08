@@ -1,6 +1,6 @@
 from .context import EmpresaContext
 from .dte import (
-    GuiaDespachoDocumentoIn,
+    GenerateGuiaDespachoIn,
     InfoEnvioIn,
     ObtainFoliosIn,
     GenerateSobreIn,

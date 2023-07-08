@@ -1,8 +1,9 @@
 # from xml.etree import ElementTree as ET
-from datetime import datetime
 import lxml.etree as ET
+import base64
 
 from google.cloud import storage  # type: ignore
+from weasyprint import HTML  # type: ignore
 
 
 def get_xml_file_tuple_for_request(
@@ -20,30 +21,26 @@ def get_xml_file_tuple_for_request(
         file_name = f"SOBRE_{id}.xml"
     bucket_file = _read_from_bucket(file_name, bucket_name)
 
-    # This seems to be a way of reading the file from the bucket similar to open()
-    # bucket_file = io.BytesIO(_read_from_bucket(file_name, bucket_name))
-
-    # The following code is for testing purposes only
-    # bucket_file_2 = open("files/" + file_name, "rb").read()
-    # print(bucket_file == bucket_file_2)
-    # print(f"bucket_file: {bucket_file}")
-    # print(f"bucket_file_2: {bucket_file_2}")
-    # raise Exception("stop")
-
     file_file = (
         "file",
         (
             file_name,
             bucket_file,
-            # open(
-            #     "files/" + file_name,
-            #     "rb",
-            # ),
             "text/xml",
         ),
     )
     return file_file
 
+def get_logo_base64(empresa_id: str, bucket_name: str):
+    """Open the .png file from cloud storage and return it in buffer.
+    
+    It must have been previously uploaded to Firebase Cloud Storage under the name
+    logo_{empresa_id}.png
+    """
+    logo_name = f"logo_{empresa_id}.png"
+    bucket_file = _read_from_bucket(logo_name, bucket_name)
+    logo_base64 = base64.b64encode(bucket_file).decode()
+    return logo_base64
 
 def certificate_file(empresa_id: str):
     """Open the .pfx file and return it in requests format"""
@@ -61,6 +58,18 @@ def certificate_file(empresa_id: str):
         ),
     )
     return cert_file
+
+def create_and_upload_pdf_from_html_string(
+    empresa_id,
+    html_string,
+    firebase_bucket_name,  # parameter just for now
+    count=0,
+    ):
+    """Create a PDF file from a HTML string and return the public URL."""
+    filename = f"DTE_GD_{empresa_id}f{count}.pdf"
+    pdf_bytes = HTML(string=html_string).write_pdf()
+    url = _upload_to_bucket(pdf_bytes, filename, firebase_bucket_name, file_type="pdf")
+    return url
 
 
 def upload_xml_string_to_bucket(
@@ -85,9 +94,21 @@ def upload_xml_string_to_bucket(
         filename = f"SOBRE_{id}.xml"
 
     string = ET.tostring(tree, encoding="latin1")
-    url = _upload_to_bucket(string, filename, firebase_bucket_name)
+    url = _upload_to_bucket(string, filename, firebase_bucket_name, file_type="xml")
     return url
 
+def _upload_to_bucket(file_to_upload, file_name, bucket_name, file_type="xml"):
+    """Upload the XML file to the bucket and return the public URL."""
+
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(bucket_name)
+    blob = bucket.blob(file_name)
+    # This is to avoid the caching of the file, which makes the file not to be updated
+    # when the same file name is used.
+    blob.cache_control = 'no-cache, max-age=0'
+    blob.upload_from_string(file_to_upload, content_type=f"application/{file_type}")
+    blob.make_public()
+    return blob.public_url
 
 def _read_from_bucket(file_name, bucket_name):
     """Read the XML file from the bucket and return it in buffer."""
@@ -99,12 +120,5 @@ def _read_from_bucket(file_name, bucket_name):
     return bucket_file
 
 
-def _upload_to_bucket(file_to_upload, file_name, bucket_name):
-    """Upload the XML file to the bucket and return the public URL."""
 
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(bucket_name)
-    blob = bucket.blob(file_name)
-    blob.upload_from_string(file_to_upload, content_type="application/xml")
-    blob.make_public()
-    return blob.public_url
+

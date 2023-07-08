@@ -1,18 +1,47 @@
 # Useful commands
+
+# Run dockerized app locally (this is while we don't have a docker-compose file, since it doesn't take long to build the image)
+# We need to have the firebase credentials file one level up from the project folder
+.PHONY: docker-build-and-run
+docker-build-and-run:
+	docker build -t kitsune_image .
+	docker run -p 8000:8000 \
+	-e GOOGLE_APPLICATION_CREDENTIALS=/firebase-adminsdk-credentials.json \
+	-v $(shell pwd)/../timberstock-firebase-adminsdk-credentials.json:/firebase-adminsdk-credentials.json \
+	-v $(shell pwd):/app \
+	--name kitsune_container kitsune_image
+
+# Restart docker by stoping and removing container and image
+.PHONY: restart-docker-clean
+restart-docker-clean:
+	docker stop kitsune_container
+	docker rm kitsune_container
+	docker rmi kitsune_image
+
+# Open a shell inside the container
+.PHONY: docker-shell
+docker-shell:
+	docker exec -it kitsune_container bash
 	
-# Run the app locally
+# Deploy the app to Google App Engine
+.PHONY: deploy
+deploy:
+	gcloud app deploy
+
+
+# Run the app locally (deprecated, should use docker now)
 .PHONY: local-server
-local-server:
+local-server-deprecated:
 	. .venv/bin/activate; uvicorn kitsune_app.main:app --reload
 	
 
-# Setup the project
+# Setup the project (deprecated, should use docker now)
 .PHONY: setup
 setup:
 	pip install -r requirements.txt
 	
 
-# Cleanup the project
+# Cleanup the project (deprecated, should use docker now)
 .PHONY: restart
 restart:
 	rm -rf __pycache__
@@ -21,10 +50,6 @@ restart:
 	. .venv/bin/activate; pip install -r requirements.txt
 
 
-# Deploy the app to Google App Engine
-.PHONY: deploy
-deploy:
-	gcloud app deploy
 	
 
 

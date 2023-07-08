@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends
 from kitsune_app.dependencies.sii import empresa_context, document_to_guia
 from kitsune_app.schemas import EmpresaContext
 from kitsune_app.schemas.dte import (
-    GuiaDespachoDocumentoIn,
+    GenerateGuiaDespachoIn,
     InfoEnvioIn,
     ObtainFoliosIn,
     GenerateSobreIn,
@@ -19,6 +19,8 @@ from kitsune_app.utils import (
     empresa_id_to_rut_empresa,
     get_xml_file_tuple_for_request,
     upload_xml_string_to_bucket,
+    create_and_upload_pdf_from_html_string,
+    get_logo_base64
 )
 
 import json
@@ -95,14 +97,14 @@ def available_folios(context: EmpresaContext = Depends(empresa_context)):
 # Genera un DTE Guia de Despacho en un archivo .xml
 @router.post("/dte/{empresa_id}")
 def generate_dte_guiadespacho(
-    document: GuiaDespachoDocumentoIn,
+    generate_dte_params: GenerateGuiaDespachoIn,
     guia_despacho: dict = Depends(document_to_guia),
     context: EmpresaContext = Depends(empresa_context),
 ):
     """
     Main endpoint of the API, generates a DTE Guia de Despacho with
-    GuiaDespachoDocumento in the body of the request and returns an url for the DTE in
-    a .xml file if succeeds.
+    GuiaDespachoDocumento in the params of the request and returns an url for the DTE in
+    a .xml file and another one for .pdf if succeeds (stored in Firestore)
     """
     try:
         empresa_id = context.empresa_id
@@ -119,40 +121,87 @@ def generate_dte_guiadespacho(
             ),
         ]
         headers = {"Authorization": AUTH}
-        # TODO: use httpx instead of requests
-        response = requests.post(url, headers=headers, data=payload, files=files)
-        # print(response.status_code)
-        # print(response.reason)
-        # print(response.text)
-        if response.status_code == 200:
-            guia_xml = response.text
-            url = upload_xml_string_to_bucket(
+        # Get the XML from SimpleAPI as string
+        print("Generating XML file for Guia de Despacho...")
+        response_xml = requests.post(url, headers=headers, data=payload, files=files)
+        
+        if response_xml.status_code == 200:
+            guia_xml = response_xml.text
+            # Upload the XML to Firebase Storage
+            print("Uploading XML file to Firebase Storage...")
+            xml_url = upload_xml_string_to_bucket(
                 empresa_id, guia_xml, "GD", FIREBASE_BUCKET, folio
             )
-            print(url)
-            # return JSONResponse(status_code=status.HTTP_201_CREATED,
-            #                     content=response_dict)
-            return {
-                "status_code": response.status_code,
-                "message": "DTE generado correctamente",
-                "url": url,
-            }
+            try:
+                # Get the barcode from SimpleAPI
+                pdf_html_string = generate_dte_params.pdf_html_string
+                url = "https://api.simpleapi.cl/api/v1/impresion/timbre"
+                print("Generating barcode...")
+                gd_file = get_xml_file_tuple_for_request(empresa_id, "GD", FIREBASE_BUCKET, folio_or_sobre_count=folio)
+                files = [gd_file]
+                response_barcode = requests.post(url, headers=headers, files=files)
+                barcode_png_base64 = response_barcode.text
+                # Embed the image in the HTML string
+                pdf_html_string_with_barcode = pdf_html_string.replace(
+                    '</body>', 
+                    f'<div style="position: absolute; left: 187.5px"><img src="data:image/png;base64,{barcode_png_base64}" style="width: 275px; height: 132px" /></div></body>'
+                )
+                
+                # Get logo from Firebase Storage in base64 and replace it in the HTML string
+                logo_base64 = get_logo_base64(empresa_id, FIREBASE_BUCKET) 
+                pdf_html_string_with_barcode = pdf_html_string_with_barcode.replace(
+                    '<img src="placeholder.png" alt="logo" />',
+                    f'<img src="data:image/png;base64,{logo_base64}" alt="logo" style="height: 80px"/>'
+                )
+                
+                # Generate the PDF from the HTML string
+                print("Generating PDF file...")
+                pdf_url = create_and_upload_pdf_from_html_string(
+                    empresa_id,
+                    pdf_html_string_with_barcode,
+                    FIREBASE_BUCKET,
+                    folio
+                )
+                
+                if response_barcode.status_code == 200:
+                    print(f"[{response_barcode.status_code}] PDF URL for Guia Folio {folio}: {pdf_url}")
+                    return {
+                        "status_code": response_barcode.status_code,
+                        "message": "XML y PDF generado correctamente",
+                        "xml_url": xml_url,
+                        "pdf_url": pdf_url,
+                    }
+                else:
+                    print(f"[{response_barcode.status_code}] {response_barcode.reason}: {response_barcode.text}")
+                    return {
+                        "status_code": response_barcode.status_code,
+                        "message": f"[barcode]{response_barcode.reason}: {response_barcode.text}",
+                    }
+            except Exception as e:
+                print(e)
+                return {
+                    "status_code": 600,
+                    "message": "[barcode] XML generado, error en creacion de PDF",
+                    "url": xml_url,
+                }
         else:
-            print(f"{response.status_code}: {response.reason}: {response.text}")
+            print(f"{response_xml.status_code}: {response_xml.reason}: {response_xml.text}")
             return {
-                "status_code": response.status_code,
-                "message": f"{response.reason}: {response.text}",
+                "status_code": response_xml.status_code,
+                "message": f"{response_xml.reason}: {response_xml.text}",
             }
 
     except requests.exceptions.RequestException as e:
         print(e)
         return {
+            "status_code": e.response.status_code,
             "message": str(e),
         }
 
     except Exception as e:
         print(e)
         return {
+            "status_code": 601,
             "message": str(e),
         }
 

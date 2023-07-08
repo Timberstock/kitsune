@@ -2,13 +2,16 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import PlainTextResponse
 
-from .middlewares import EmpresaContextMiddleware
-from .routers import sii_router
-from .setup import firebase_setup
+from kitsune_app.middlewares import EmpresaContextMiddleware
+from kitsune_app.routers import sii_router
+from kitsune_app.setup import firebase_setup
 
 
+print("Starting firebase setup...")
 firebase_setup()
 app = FastAPI()
+print("Firebase setup correct!")
+
 
 
 @app.exception_handler(RequestValidationError)
