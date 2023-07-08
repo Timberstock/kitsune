@@ -1,29 +1,29 @@
 # change requests if async http calls are needed for more concurrent requests
-import requests  # type: ignore
 import datetime
+import json
+
+import requests  # type: ignore
 
 from fastapi import APIRouter, Depends
 
-from kitsune_app.dependencies.sii import empresa_context, document_to_guia
+from kitsune_app.dependencies.sii import document_to_guia, empresa_context
 from kitsune_app.schemas import EmpresaContext
 from kitsune_app.schemas.dte import (
+    ConsultarEstadoDTEIn,
     GenerateGuiaDespachoIn,
+    GenerateSobreIn,
     InfoEnvioIn,
     ObtainFoliosIn,
-    GenerateSobreIn,
-    ConsultarEstadoDTEIn,
 )
 from kitsune_app.settings import AUTH, FIREBASE_BUCKET
 from kitsune_app.utils import (
     certificate_file,
+    create_and_upload_pdf_from_html_string,
     empresa_id_to_rut_empresa,
+    get_logo_base64,
     get_xml_file_tuple_for_request,
     upload_xml_string_to_bucket,
-    create_and_upload_pdf_from_html_string,
-    get_logo_base64
 )
-
-import json
 
 
 router = APIRouter(tags=["SII"])
@@ -124,7 +124,7 @@ def generate_dte_guiadespacho(
         # Get the XML from SimpleAPI as string
         print("Generating XML file for Guia de Despacho...")
         response_xml = requests.post(url, headers=headers, data=payload, files=files)
-        
+
         if response_xml.status_code == 200:
             guia_xml = response_xml.text
             # Upload the XML to Firebase Storage
@@ -137,34 +137,41 @@ def generate_dte_guiadespacho(
                 pdf_html_string = generate_dte_params.pdf_html_string
                 url = "https://api.simpleapi.cl/api/v1/impresion/timbre"
                 print("Generating barcode...")
-                gd_file = get_xml_file_tuple_for_request(empresa_id, "GD", FIREBASE_BUCKET, folio_or_sobre_count=folio)
+                gd_file = get_xml_file_tuple_for_request(
+                    empresa_id, "GD", FIREBASE_BUCKET, folio_or_sobre_count=folio
+                )
                 files = [gd_file]
                 response_barcode = requests.post(url, headers=headers, files=files)
                 barcode_png_base64 = response_barcode.text
                 # Embed the image in the HTML string
                 pdf_html_string_with_barcode = pdf_html_string.replace(
-                    '</body>', 
-                    f'<div style="position: absolute; left: 187.5px"><img src="data:image/png;base64,{barcode_png_base64}" style="width: 275px; height: 132px" /></div></body>'
+                    "</body>",
+                    '<div style="position: absolute; left: 187.5px">'
+                    f'<img src="data:image/png;base64,{barcode_png_base64}"'
+                    'style="width: 275px; height: 132px" />'
+                    "</div>"
+                    "</body>",
                 )
-                
-                # Get logo from Firebase Storage in base64 and replace it in the HTML string
-                logo_base64 = get_logo_base64(empresa_id, FIREBASE_BUCKET) 
+
+                # Get logo from Firebase Storage in base64 and replace it in the HTML
+                logo_base64 = get_logo_base64(empresa_id, FIREBASE_BUCKET)
                 pdf_html_string_with_barcode = pdf_html_string_with_barcode.replace(
                     '<img src="placeholder.png" alt="logo" />',
-                    f'<img src="data:image/png;base64,{logo_base64}" alt="logo" style="height: 80px"/>'
+                    f'<img src="data:image/png;base64,{logo_base64}"'
+                    'alt="logo" style="height: 80px"/>',
                 )
-                
+
                 # Generate the PDF from the HTML string
                 print("Generating PDF file...")
                 pdf_url = create_and_upload_pdf_from_html_string(
-                    empresa_id,
-                    pdf_html_string_with_barcode,
-                    FIREBASE_BUCKET,
-                    folio
+                    empresa_id, pdf_html_string_with_barcode, FIREBASE_BUCKET, folio
                 )
-                
+
                 if response_barcode.status_code == 200:
-                    print(f"[{response_barcode.status_code}] PDF URL for Guia Folio {folio}: {pdf_url}")
+                    print(
+                        f'"[{response_barcode.status_code}] PDF'
+                        f'URL for Guia Folio {folio}: {pdf_url}"'
+                    )
                     return {
                         "status_code": response_barcode.status_code,
                         "message": "XML y PDF generado correctamente",
@@ -172,10 +179,15 @@ def generate_dte_guiadespacho(
                         "pdf_url": pdf_url,
                     }
                 else:
-                    print(f"[{response_barcode.status_code}] {response_barcode.reason}: {response_barcode.text}")
+                    print(
+                        f'"[{response_barcode.status_code}]'
+                        f"{response_barcode.reason}:"
+                        '{response_barcode.text}"'
+                    )
                     return {
                         "status_code": response_barcode.status_code,
-                        "message": f"[barcode]{response_barcode.reason}: {response_barcode.text}",
+                        "message": f"[barcode]{response_barcode.reason}:"
+                        f'{response_barcode.text}"',
                     }
             except Exception as e:
                 print(e)
@@ -185,7 +197,11 @@ def generate_dte_guiadespacho(
                     "url": xml_url,
                 }
         else:
-            print(f"{response_xml.status_code}: {response_xml.reason}: {response_xml.text}")
+            print(
+                f"{response_xml.status_code}:"
+                f"{response_xml.reason}:"
+                f"{response_xml.text}"
+            )
             return {
                 "status_code": response_xml.status_code,
                 "message": f"{response_xml.reason}: {response_xml.text}",
@@ -366,7 +382,6 @@ def get_sobre_status(track_id: int, context: EmpresaContext = Depends(empresa_co
 def get_validacion_dte(folio: int, context: EmpresaContext = Depends(empresa_context)):
     try:
         empresa_id = context.empresa_id
-        certificate = context.pfx_certificate
         payload = {"input": "{Tipo:1}"}
         files = [
             get_xml_file_tuple_for_request(

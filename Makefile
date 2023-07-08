@@ -55,6 +55,7 @@ restart:
 
 
 # Linters
+# Must be run inside a venv with the requirements installed
 # =======
 .PHONY: black
 black:

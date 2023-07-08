@@ -1,6 +1,6 @@
 from kitsune_app.middlewares.context import get_empresa_context
-from kitsune_app.utils import clean_null_terms, document_to_dict
 from kitsune_app.schemas import EmpresaContext, GenerateGuiaDespachoIn
+from kitsune_app.utils import clean_null_terms, document_to_dict
 
 
 def empresa_context() -> EmpresaContext:

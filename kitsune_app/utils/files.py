@@ -1,6 +1,9 @@
 # from xml.etree import ElementTree as ET
-import lxml.etree as ET
 import base64
+
+from typing import Optional
+
+import lxml.etree as ET
 
 from google.cloud import storage  # type: ignore
 from weasyprint import HTML  # type: ignore
@@ -31,9 +34,10 @@ def get_xml_file_tuple_for_request(
     )
     return file_file
 
-def get_logo_base64(empresa_id: str, bucket_name: str):
+
+def get_logo_base64(empresa_id: str, bucket_name: Optional[str]):
     """Open the .png file from cloud storage and return it in buffer.
-    
+
     It must have been previously uploaded to Firebase Cloud Storage under the name
     logo_{empresa_id}.png
     """
@@ -41,6 +45,7 @@ def get_logo_base64(empresa_id: str, bucket_name: str):
     bucket_file = _read_from_bucket(logo_name, bucket_name)
     logo_base64 = base64.b64encode(bucket_file).decode()
     return logo_base64
+
 
 def certificate_file(empresa_id: str):
     """Open the .pfx file and return it in requests format"""
@@ -59,12 +64,13 @@ def certificate_file(empresa_id: str):
     )
     return cert_file
 
+
 def create_and_upload_pdf_from_html_string(
     empresa_id,
     html_string,
     firebase_bucket_name,  # parameter just for now
     count=0,
-    ):
+):
     """Create a PDF file from a HTML string and return the public URL."""
     filename = f"DTE_GD_{empresa_id}f{count}.pdf"
     pdf_bytes = HTML(string=html_string).write_pdf()
@@ -97,6 +103,7 @@ def upload_xml_string_to_bucket(
     url = _upload_to_bucket(string, filename, firebase_bucket_name, file_type="xml")
     return url
 
+
 def _upload_to_bucket(file_to_upload, file_name, bucket_name, file_type="xml"):
     """Upload the XML file to the bucket and return the public URL."""
 
@@ -105,10 +112,11 @@ def _upload_to_bucket(file_to_upload, file_name, bucket_name, file_type="xml"):
     blob = bucket.blob(file_name)
     # This is to avoid the caching of the file, which makes the file not to be updated
     # when the same file name is used.
-    blob.cache_control = 'no-cache, max-age=0'
+    blob.cache_control = "no-cache, max-age=0"
     blob.upload_from_string(file_to_upload, content_type=f"application/{file_type}")
     blob.make_public()
     return blob.public_url
+
 
 def _read_from_bucket(file_name, bucket_name):
     """Read the XML file from the bucket and return it in buffer."""
@@ -118,7 +126,3 @@ def _read_from_bucket(file_name, bucket_name):
     blob = bucket.blob(file_name)
     bucket_file = blob.download_as_bytes()
     return bucket_file
-
-
-
-

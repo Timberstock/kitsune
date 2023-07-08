@@ -13,7 +13,6 @@ app = FastAPI()
 print("Firebase setup correct!")
 
 
-
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
     print(exc)

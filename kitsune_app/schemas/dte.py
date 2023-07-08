@@ -15,7 +15,7 @@ class ConsultarEstadoDTEIn(BaseModel):
 
 # ENVIAR SOBRE
 class InfoEnvioIn(BaseModel):
-    sobres_document_ids: list = None
+    sobres_document_ids: list
     Tipo: int = 1
     Ambiente: int = 0
 
@@ -145,6 +145,7 @@ class Dte(BaseModel):
     Detalles: list
     Referencias: Optional[list] = None
     DescuentosRecargos: Optional[list] = None
+
 
 class GenerateGuiaDespachoIn(BaseModel):
     dte: Dte
