@@ -20,10 +20,16 @@ libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev share
 # dependencies into the virtualenv.
 ADD requirements.txt requirements.txt
 RUN pip install -r requirements.txt
-
-# Add the application source code, and move there
 ADD . /app/kitsune_app
+
+# [DEVELOPMENT]
+# Add the application source code, and move there
+# WORKDIR /app
+# CMD ["uvicorn", "kitsune_app.main:app", "--host", "0.0.0.0", "--reload"]
+
+# [PRODUCTION]
 WORKDIR /app/kitsune_app
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8080", "kitsune_app.main:app"]
 
 # Run a WSGI server to serve the application. uvicorn must be declared as
 # a dependency in requirements.txt.
@@ -31,11 +37,3 @@ WORKDIR /app/kitsune_app
 # because, given this now on a container, default (127.0.0.1) means "only listen
 # for connections from the same machine (container in this case)". While 0.0.0.0
 # means "listen for all connections" (including the host, i.e a different "machine").
-
-# This is for development
-# CMD ["uvicorn", "kitsune_app.main:app", "--host", "0.0.0.0", "--reload"]
-
-# This would be for production
-# CMD ["uvicorn", "kitsune_app.main:app", "--host", "0.0.0.0"]
-
-CMD gunicorn -w 4 -k uvicorn.workers.UvicornWorker kitsune_app.main:app
