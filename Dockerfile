@@ -1,39 +1,33 @@
-# Use an official Python runtime as the base image
+# Use a smaller base image
 FROM python:3.10-slim
 
-# Create a virtualenv for dependencies. This isolates these packages from
-# system-level packages.
-# Use -p python3 or -p python3.7 to select python version. Default is version 2.
-RUN python3 -m venv /venv
+# To get prints  correctly?
+ENV PYTHONUNBUFFERED True
 
-# Setting these environment variables are the same as running
-# source /env/bin/activate.
-ENV VIRTUAL_ENV /venv
-ENV PATH /venv/bin:$PATH
+# Set the working directory
+WORKDIR /app
 
-# Install platform's packages required for WeasyPrint
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy your application code
+COPY . .
+
+# Copy the service account key file
+COPY timberstock-firebase-adminsdk-credentials.json /app/service_account_key.json
+
+# Set the environment variable for the service account key
+ENV GOOGLE_APPLICATION_CREDENTIALS="/app/service_account_key.json"
+
+
+# Install WeasyPrint dependencies
 RUN apt-get update && apt-get -y install build-essential python3-dev python3-pip \
-python3-setuptools python3-wheel python3-cffi \
-libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info
+    python3-setuptools python3-wheel python3-cffi \
+    libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info
 
-# Copy the application's requirements.txt and run pip to install all
-# dependencies into the virtualenv.
-ADD requirements.txt requirements.txt
-RUN pip install -r requirements.txt
-ADD . /app/kitsune_app
+# EXPOSE port 8080 to allow communication to/from server
+EXPOSE 8080
 
-# [DEVELOPMENT]
-# Add the application source code, and move there
-# WORKDIR /app
-# CMD ["uvicorn", "kitsune_app.main:app", "--host", "0.0.0.0", "--reload"]
-
-# [PRODUCTION]
-WORKDIR /app/kitsune_app
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8080", "kitsune_app.main:app"]
-
-# Run a WSGI server to serve the application. uvicorn must be declared as
-# a dependency in requirements.txt.
-# We use uvicorn WSGI server to serve the application. We specify this --host
-# because, given this now on a container, default (127.0.0.1) means "only listen
-# for connections from the same machine (container in this case)". While 0.0.0.0
-# means "listen for all connections" (including the host, i.e a different "machine").
+# Set the entrypoint to run your FastAPI application
+CMD ["uvicorn", "kitsune_app.main:app", "--host", "0.0.0.0", "--port", "8080"]

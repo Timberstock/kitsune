@@ -1,4 +1,9 @@
-# Useful commands
+# Deploy the app to Google Cloud Run.
+.PHONY: deploy
+deploy:
+	$(info Make sure the project is correctly set with the correct ACCOUNT, PROJECT_ID and REGION)
+	gcloud run deploy kitsune-api --port 8080 --source .
+
 
 # Run dockerized app locally (this is while we don't have a docker-compose file, since it doesn't take long to build the image)
 # We need to have the firebase credentials file one level up from the project folder
@@ -23,10 +28,6 @@ restart-docker-clean:
 docker-shell:
 	docker exec -it kitsune_container bash
 	
-# Deploy the app to Google App Engine
-.PHONY: deploy
-deploy:
-	gcloud app deploy
 
 
 # Run the app locally (deprecated, should use docker now)

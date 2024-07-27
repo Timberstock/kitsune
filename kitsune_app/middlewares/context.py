@@ -43,13 +43,18 @@ class EmpresaContextMiddleware:
         context_model = EmpresaContext()
 
         # actual state of endpoints always have rut_empresa as the second path param
-        empresa_id_value = scope["path"].split("/")[2]
-        pfx_certificate_value = get_certificate_credentials(empresa_id_value, SALT)
+        try:
+            empresa_id_value = scope["path"].split("/")[2]
+            pfx_certificate_value = get_certificate_credentials(empresa_id_value, SALT)
 
-        context_model.empresa_id = empresa_id_value
-        context_model.pfx_certificate = pfx_certificate_value
-        empresa_context = _empresa_ctx_var.set(context_model)
+            context_model.empresa_id = empresa_id_value
+            context_model.pfx_certificate = pfx_certificate_value
+            empresa_context = _empresa_ctx_var.set(context_model)
 
-        await self.app(scope, receive, send)
+            await self.app(scope, receive, send)
 
-        _empresa_ctx_var.reset(empresa_context)
+            _empresa_ctx_var.reset(empresa_context)
+        except IndexError:
+            print("No rut_empresa found in path")
+            await self.app(scope, receive, send)
+            return

@@ -243,9 +243,6 @@ def generate_sobre(
             caratula["RutEmisor"] = empresa_id_to_rut_empresa(empresa_id)
         payload = {"input": str({"Certificado": certificate, "Caratula": caratula})}
         url = "https://api.simpleapi.cl/api/v1/envio/generar"
-        # TODO: sobres are going to be generated daily, so we need to get the last sobre
-        # count from the bucket
-        # sobre_count_siguiente = 4
         folios_sin_enviar = generate_sobre_params.folios
         files = [certificate_file(empresa_id)]
         for folio in folios_sin_enviar:
@@ -263,7 +260,6 @@ def generate_sobre(
         print(response.reason)
         print(response.text)
         if response.status_code == 200:
-            today = datetime.date.today()
             url = upload_xml_string_to_bucket(
                 empresa_id,
                 response.text,
@@ -275,7 +271,6 @@ def generate_sobre(
                 "status_code": response.status_code,
                 "reason": response.reason,
                 "url": url,
-                "date": today,
             }
         else:
             print(f"{response.status_code}: {response.reason}: {response.text}")
@@ -293,7 +288,7 @@ def generate_sobre(
 
 
 # Se envian los sobres de envio de DTEs que no han sido enviados al SII.
-# este endpoint a veces tiene problemas en el request a SimpleAPI, por lo que
+# Este endpoint a veces tiene problemas en el request a SimpleAPI, por lo que
 # cuando se trata de problemas de servidor, token, etc hay que settearlo
 # para que se vuelva a intentar hasta que funcione o envie un error de schema
 @router.post("/sobre/{empresa_id}/enviar")
@@ -331,6 +326,11 @@ def enviar_sobre(
                 "text": response.text,
                 "trackId": response_dict.get("trackId", "Send Failed"),
             }
+        else:
+            return {
+                "status_code": response.status_code,
+                "message": f"{response.reason}: {response.text}",
+            }
     except requests.exceptions.RequestException as e:
         raise SystemExit(e)
     except Exception as e:
@@ -359,18 +359,23 @@ def get_sobre_status(track_id: int, context: EmpresaContext = Depends(empresa_co
         ]
         headers = {"Authorization": AUTH}
         url = "https://api.simpleapi.cl/api/v1/consulta/envio"
-        # TODO: use httpx instead of requests
         response = requests.post(url, headers=headers, data=payload, files=files)
         if response.status_code == 200:
-            # TODO: save the result in the firestore document if succesful or failed
-            print(response)
-            print(response.text)
-            pass
-        return {
-            "status_code": response.status_code,
-            "reason": response.reason,
-            "text": response.text,
-        }
+            # Parse string to json
+            response_dict = json.loads(response.text)
+            estados: list = response_dict.get("estados", [])
+            print(response_dict)
+            return {
+                "status_code": response.status_code,
+                "reason": response.reason,
+                "estados": response_dict.get("estados", "Send Failed"),
+                "text": response.text,
+            }
+        else:
+            return {
+                "status_code": response.status_code,
+                "message": f"{response.reason}: {response.text}",
+            }
 
     except requests.exceptions.RequestException as e:
         raise SystemExit(e)
