@@ -113,6 +113,7 @@ def generate_dte_guiadespacho(
         payload = {
             "input": str({"Documento": guia_despacho, "Certificado": certificate})
         }
+        print(guia_despacho)
         folio = int(guia_despacho["Encabezado"]["IdentificacionDTE"]["Folio"])
         files = [
             certificate_file(empresa_id),
@@ -258,7 +259,6 @@ def generate_sobre(
         response = requests.post(url, headers=headers, data=payload, files=files)
         print(response.status_code)
         print(response.reason)
-        print(response.text)
         if response.status_code == 200:
             url = upload_xml_string_to_bucket(
                 empresa_id,

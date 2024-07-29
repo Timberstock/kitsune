@@ -4,7 +4,29 @@ deploy:
 	$(info Make sure the project is correctly set with the correct ACCOUNT, PROJECT_ID and REGION)
 	gcloud run deploy kitsune-api --port 8080 --source .
 
+# Run the app locally using docker-compose
+.PHONY: docker compose up
+docker-compose-up:
+	docker compose up
 
+# Build with docker-compose
+.PHONY: docker compose build
+docker-compose-build:
+	docker compose build
+
+# Open a shell inside the container
+.PHONY: docker-shell
+docker-shell:
+	docker exec -it kitsune_container bash
+
+
+
+
+
+
+# Deprecated commands
+
+# (deprecated, should use docker compose now)
 # Run dockerized app locally (this is while we don't have a docker-compose file, since it doesn't take long to build the image)
 # We need to have the firebase credentials file one level up from the project folder
 .PHONY: docker-build-and-run
@@ -16,19 +38,12 @@ docker-build-and-run:
 	-v $(shell pwd):/app \
 	--name kitsune_container kitsune_image
 
-# Restart docker by stoping and removing container and image
+# Restart docker by stoping and removing container and image (deprecated, should use docker-compose now)
 .PHONY: restart-docker-clean
 restart-docker-clean:
 	docker stop kitsune_container
 	docker rm kitsune_container
 	docker rmi kitsune_image
-
-# Open a shell inside the container
-.PHONY: docker-shell
-docker-shell:
-	docker exec -it kitsune_container bash
-	
-
 
 # Run the app locally (deprecated, should use docker now)
 .PHONY: local-server

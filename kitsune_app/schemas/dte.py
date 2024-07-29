@@ -82,10 +82,10 @@ class Receptor(BaseModel):
 
 class Totales(BaseModel):
     MontoNeto: int
-    MontoExento: Optional[int] = None
     TasaIVA: int = 19
-    Iva: Optional[int] = None
+    IVA: Optional[int] = None
     MontoTotal: int
+    MontoExento: Optional[int] = None
 
 
 class Chofer(BaseModel):

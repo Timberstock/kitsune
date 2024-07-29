@@ -15,11 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Copy the service account key file
-COPY timberstock-firebase-adminsdk-credentials.json /app/service_account_key.json
+# COPY timberstock-firebase-adminsdk-credentials.json /app/service_account_key.json
 
 # Set the environment variable for the service account key
-ENV GOOGLE_APPLICATION_CREDENTIALS="/app/service_account_key.json"
-
+# ENV GOOGLE_APPLICATION_CREDENTIALS="/app/service_account_key.json"
 
 # Install WeasyPrint dependencies
 RUN apt-get update && apt-get -y install build-essential python3-dev python3-pip \
