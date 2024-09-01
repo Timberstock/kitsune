@@ -29,43 +29,6 @@ from kitsune_app.utils import (
 router = APIRouter(tags=["SII"])
 
 
-# POST 127.0.0.1:8000/folios/770685532 body: {"amount": 5}
-@router.post("/folios/{empresa_id}")
-def obtain_new_folios(
-    obtain_folios_args: ObtainFoliosIn,
-    context: EmpresaContext = Depends(empresa_context),
-):
-    empresa_id = context.empresa_id
-    certificate = context.pfx_certificate
-    folios_amount = obtain_folios_args.amount
-    try:
-        url = f"https://servicios.simpleapi.cl/api/folios/get/52/{folios_amount}"
-        body = {
-            **certificate,
-            "RutEmpresa": empresa_id_to_rut_empresa(empresa_id),
-            "Ambiente": 0,
-        }
-
-        # TODO: should be retrieved according to the folio number instead
-        # caf_count
-        payload = {"input": str(dict(body))}
-        files = [certificate_file(empresa_id)]
-        headers = {"Authorization": AUTH}
-        # TODO: use httpx instead of requests
-        response = requests.post(url, headers=headers, data=payload, files=files)
-        # if response.status_code == 200:
-        #     upload_xml_string_to_bucket(response.text, empresa_id, caf_count, "CAF")
-        return {
-            "status_code": response.status_code,
-            "reason": response.reason,
-            "text": response.text,
-        }
-    except requests.exceptions.RequestException as e:
-        raise SystemExit(e)
-    except Exception as e:
-        raise SystemExit(e)
-
-
 # GET 127.0.0.1:8000/folios/770685532
 @router.get("/folios/{empresa_id}")
 def available_folios(context: EmpresaContext = Depends(empresa_context)):
@@ -454,3 +417,41 @@ def consultar_estado_dte(
         raise SystemExit(e)
     except Exception as e:
         raise SystemExit(e)
+
+
+# POST 127.0.0.1:8000/folios/770685532 body: {"amount": 5}
+# UNUSED
+# @router.post("/folios/{empresa_id}")
+# def obtain_new_folios(
+#     obtain_folios_args: ObtainFoliosIn,
+#     context: EmpresaContext = Depends(empresa_context),
+# ):
+#     empresa_id = context.empresa_id
+#     certificate = context.pfx_certificate
+#     folios_amount = obtain_folios_args.amount
+#     try:
+#         url = f"https://servicios.simpleapi.cl/api/folios/get/52/{folios_amount}"
+#         body = {
+#             **certificate,
+#             "RutEmpresa": empresa_id_to_rut_empresa(empresa_id),
+#             "Ambiente": 0,
+#         }
+
+#         # TODO: should be retrieved according to the folio number instead
+#         # caf_count
+#         payload = {"input": str(dict(body))}
+#         files = [certificate_file(empresa_id)]
+#         headers = {"Authorization": AUTH}
+#         # TODO: use httpx instead of requests
+#         response = requests.post(url, headers=headers, data=payload, files=files)
+#         # if response.status_code == 200:
+#         #     upload_xml_string_to_bucket(response.text, empresa_id, caf_count, "CAF")
+#         return {
+#             "status_code": response.status_code,
+#             "reason": response.reason,
+#             "text": response.text,
+#         }
+#     except requests.exceptions.RequestException as e:
+#         raise SystemExit(e)
+#     except Exception as e:
+#         raise SystemExit(e)

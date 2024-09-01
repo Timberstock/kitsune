@@ -1,8 +1,0 @@
-# from https://github.com/GoogleCloudPlatform/python-docs-samples/blob/main/appengine/standard/flask/hello_world/app.yaml
-# Basically, we use app.yaml + Dockerfile to have a custom runtime on App Engine flexible environment, because the default environments from GCP and Docker are missing some dependencies necessary for WeasyPrint
-
-runtime: custom
-env: flex
-manual_scaling:
-  instances: 1
-

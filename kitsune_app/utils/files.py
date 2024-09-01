@@ -10,7 +10,7 @@ from weasyprint import HTML  # type: ignore
 
 
 def get_xml_file_tuple_for_request(
-    empresa_id, file_type, bucket_name, folio_or_sobre_count=0, CAF_step=5, id=""
+    empresa_id, file_type, bucket_name, folio_or_sobre_count=0, CAF_step=50, id=""
 ):
     """Open the .xml file from cloud storage and return it in buffer.
     Keep in mind that the CAF_step must be sync with the ObtainFoliosIn.amount in dte.py
