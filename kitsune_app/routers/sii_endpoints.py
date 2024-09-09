@@ -1,6 +1,5 @@
 # change requests if async http calls are needed for more concurrent requests
 import json
-import random
 from time import sleep
 
 import requests
@@ -100,7 +99,7 @@ def generate_dte_guiadespacho(
                 # Generate the PDF from the HTML string
                 print("Generating PDF file...")
                 pdf_file_name = create_and_upload_pdf_from_html_string(
-                    empresa_id, pdf_html_string_with_barcode, count= folio
+                    empresa_id, pdf_html_string_with_barcode, count=folio
                 )
 
                 if response_barcode.status_code == 200:
@@ -140,7 +139,7 @@ def generate_dte_guiadespacho(
     except requests.exceptions.RequestException as e:
         print(e)
         response_to_firebase = {
-            "status_code": e.response.status_code, # type: ignore
+            "status_code": e.response.status_code,  # type: ignore
             "message": str(e),
         }
         print(response_to_firebase)
@@ -180,8 +179,10 @@ def generate_sobre(
         folios_sin_enviar = generate_sobre_params.folios
         files = [certificate_file(empresa_id)]
         for folio in folios_sin_enviar:
-            dte_file = get_xml_file_tuple_for_request(empresa_id, "DTE", folio_or_sobre_count=folio)
-            files.append(dte_file) # type: ignore
+            dte_file = get_xml_file_tuple_for_request(
+                empresa_id, "DTE", folio_or_sobre_count=folio
+            )
+            files.append(dte_file)  # type: ignore
         headers = {"Authorization": AUTH}
         # TODO: use httpx instead of requests
         response = requests.post(url, headers=headers, data=payload, files=files)
@@ -212,7 +213,7 @@ def generate_sobre(
     except requests.exceptions.RequestException as e:
         print(e)
         response_to_firebase = {
-            "status_code": e.response.status_code, # type: ignore
+            "status_code": e.response.status_code,  # type: ignore
             "message": str(e),
         }
         print(response_to_firebase)
@@ -220,7 +221,7 @@ def generate_sobre(
     except Exception as e:
         print(e)
         response_to_firebase = {
-            "status_code": e.response.status_code, # type: ignore
+            "status_code": e.response.status_code,  # type: ignore
             "message": str(e),
         }
         print(response_to_firebase)
@@ -246,9 +247,7 @@ def enviar_sobre(
         url = "https://api.simpleapi.cl/api/v1/envio/enviar"
         files = [
             certificate_file(empresa_id),
-            get_xml_file_tuple_for_request(
-                empresa_id, "SOBRE", id=sobre_id
-            ),
+            get_xml_file_tuple_for_request(empresa_id, "SOBRE", id=sobre_id),
         ]
         headers = {"Authorization": AUTH}
         # TODO: use httpx instead of requests
@@ -284,7 +283,7 @@ def enviar_sobre(
     except requests.exceptions.RequestException as e:
         print(e)
         response_to_firebase = {
-            "status_code": e.response.status_code, # type: ignore
+            "status_code": e.response.status_code,  # type: ignore
             "message": str(e),
         }
         print(response_to_firebase)
@@ -292,7 +291,7 @@ def enviar_sobre(
     except Exception as e:
         print(e)
         response_to_firebase = {
-            "status_code": e.response.status_code, # type: ignore
+            "status_code": e.response.status_code,  # type: ignore
             "message": str(e),
         }
         print(response_to_firebase)
@@ -323,28 +322,32 @@ def get_sobre_status(track_id: int, context: EmpresaContext = Depends(empresa_co
         url = "https://api.simpleapi.cl/api/v1/consulta/envio"
         response = requests.post(url, headers=headers, data=payload, files=files)
         estados = []
-        # Extraemos el estado del DTE del sobre de envío en caso de que haya sido enviado
-        response_dict = json.loads(response.text) if response.status_code == 200 else {}
-        estados = response_dict.get("estados", [])
+        # Extraemos el estado del DTE del sobre en caso de que haya sido enviado
+        response_text = json.loads(response.text) if response.status_code == 200 else {}
+        estados = response_text.get("estados", [])
         retries = 0
-        while (response.status_code == 400 and retries < 5) or (response.status_code == 200 and len(estados) == 0 and retries < 10):
-            print(f"INTENTO NÚMERO {1 + retries} DE CONSULTAR ESTADO DE SOBRE {track_id}...")
+        while (response.status_code == 400 and retries < 5) or (
+            response.status_code == 200 and len(estados) == 0 and retries < 10
+        ):
+            print(f"INTENTO {1 + retries} DE CONSULTAR ESTADO DE SOBRE {track_id}...")
             response = requests.post(url, headers=headers, data=payload, files=files)
-            response_dict = json.loads(response.text) if response.status_code == 200 else {}
-            estados = response_dict.get("estados", [])
+            response_text = (
+                json.loads(response.text) if response.status_code == 200 else {}
+            )
+            estados = response_text.get("estados", [])
             retries += 1
             # wait for some time before retrying
             sleep(1 + retries)
-        
+
         if response.status_code == 200:
             # Parse string to json
             if len(estados) == 0:
                 estados = "Send Failed"
-            
+
             return {
                 "status_code": response.status_code,
                 "reason": response.reason,
-                "estados": response_dict.get("estados", "Send Failed"),
+                "estados": response_text.get("estados", "Send Failed"),
                 "text": response.text,
             }
         else:

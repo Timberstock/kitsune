@@ -1,17 +1,11 @@
-# from xml.etree import ElementTree as ET
 import base64
-
-from typing import Optional
 
 import lxml.etree as ET
 
-from google.cloud import storage  # type: ignore
-from weasyprint import HTML
+from weasyprint import HTML  # type: ignore
 
 from kitsune_app.setup.firebase import get_firebase_storage_bucket
 
-
-# from kitsune_app.settings import FIREBASE_BUCKET
 
 def get_xml_file_tuple_for_request(
     empresa_id,
@@ -33,7 +27,7 @@ def get_xml_file_tuple_for_request(
         file_name = f"empresas/{empresa_id}/SOBRES/{id}.xml"
 
     bucket_file = _read_from_bucket(file_name)
-    
+
     _filename_for_simpleAPI = file_name.split("/")[-1]
 
     file_file = (
@@ -80,10 +74,10 @@ def certificate_file(empresa_id: str):
 def create_and_upload_pdf_from_html_string(
     empresa_id,
     html_string,
-    DTE_type = "GD",
+    DTE_type="GD",
     count=0,
 ):
-    """Create a PDF file from a HTML string and return the file name within its bucket."""
+    """Create a PDF from a HTML string and return the file name within its bucket."""
     filename = f"empresas/{empresa_id}/DTE/{DTE_type}/{count}.pdf"
     pdf_bytes = HTML(string=html_string).write_pdf()
     file_name_in_bucket = _upload_to_bucket(pdf_bytes, filename, file_type="pdf")
@@ -94,7 +88,7 @@ def upload_xml_string_to_bucket(
     empresa_id,
     xml_string,
     document_type,
-    DTE_type = "GD",
+    DTE_type="GD",
     count=0,
     id="",
 ):
@@ -104,7 +98,7 @@ def upload_xml_string_to_bucket(
     """
     tree = ET.fromstring(bytes(xml_string, encoding="latin1"))
     if document_type == "CAF" and DTE_type == "GD":
-        filename =  f"empresas/{empresa_id}/CAF/{DTE_type}/{count}.xml"
+        filename = f"empresas/{empresa_id}/CAF/{DTE_type}/{count}.xml"
     elif document_type == "DTE" and DTE_type == "GD":
         filename = f"empresas/{empresa_id}/DTE/{DTE_type}/{count}.xml"
     elif document_type == "SOBRE":
@@ -146,5 +140,3 @@ def _read_from_bucket(file_name):
 #     blob = bucket.blob(file_name)
 #     bucket_file = blob.download_as_bytes()
 #     return bucket_file
-
-

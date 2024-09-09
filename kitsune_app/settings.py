@@ -16,7 +16,6 @@ def auth_to_base64(key):
     return auth_64_message
 
 
-
 load_dotenv()
 
 FIREBASE_BUCKET = os.getenv("FIREBASE_BUCKET")
