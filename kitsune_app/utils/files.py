@@ -6,28 +6,40 @@ from typing import Optional
 import lxml.etree as ET
 
 from google.cloud import storage  # type: ignore
-from weasyprint import HTML  # type: ignore
+from weasyprint import HTML
 
+from kitsune_app.setup.firebase import get_firebase_storage_bucket
+
+
+# from kitsune_app.settings import FIREBASE_BUCKET
 
 def get_xml_file_tuple_for_request(
-    empresa_id, file_type, bucket_name, folio_or_sobre_count=0, CAF_step=50, id=""
+    empresa_id,
+    file_type,
+    DTE_type="GD",
+    folio_or_sobre_count=0,
+    CAF_step=50,
+    id="",
 ):
     """Open the .xml file from cloud storage and return it in buffer.
     Keep in mind that the CAF_step must be sync with the ObtainFoliosIn.amount in dte.py
     """
-    if file_type == "CAF":
+    if file_type == "CAF" and DTE_type == "GD":
         CAF_number = (folio_or_sobre_count - 1) // CAF_step
-        file_name = f"CAF{empresa_id}n{CAF_number}.xml"
-    elif file_type == "GD":
-        file_name = f"DTE_GD_{empresa_id}f{folio_or_sobre_count}.xml"
+        file_name = f"empresas/{empresa_id}/CAF/{DTE_type}/{CAF_number}.xml"
+    elif file_type == "DTE" and DTE_type == "GD":
+        file_name = f"empresas/{empresa_id}/DTE/{DTE_type}/{folio_or_sobre_count}.xml"
     elif file_type == "SOBRE":
-        file_name = f"SOBRE_{id}.xml"
-    bucket_file = _read_from_bucket(file_name, bucket_name)
+        file_name = f"empresas/{empresa_id}/SOBRES/{id}.xml"
+
+    bucket_file = _read_from_bucket(file_name)
+    
+    _filename_for_simpleAPI = file_name.split("/")[-1]
 
     file_file = (
         "file",
         (
-            file_name,
+            _filename_for_simpleAPI,
             bucket_file,
             "text/xml",
         ),
@@ -35,15 +47,15 @@ def get_xml_file_tuple_for_request(
     return file_file
 
 
-def get_logo_base64(empresa_id: str, bucket_name: Optional[str]):
+def get_logo_base64(empresa_id: str):
     """Open the .png file from cloud storage and return it in buffer.
 
     It must have been previously uploaded to Firebase Cloud Storage under the name
     logo_{empresa_id}.png
     """
-    logo_name = f"logo_{empresa_id}.png"
-    bucket_file = _read_from_bucket(logo_name, bucket_name)
-    logo_base64 = base64.b64encode(bucket_file).decode()
+    logo_file_name = f"empresas/{empresa_id}/logo.png"
+    logo_file = _read_from_bucket(logo_file_name)
+    logo_base64 = base64.b64encode(logo_file).decode()
     return logo_base64
 
 
@@ -68,61 +80,71 @@ def certificate_file(empresa_id: str):
 def create_and_upload_pdf_from_html_string(
     empresa_id,
     html_string,
-    firebase_bucket_name,  # parameter just for now
+    DTE_type = "GD",
     count=0,
 ):
-    """Create a PDF file from a HTML string and return the public URL."""
-    filename = f"DTE_GD_{empresa_id}f{count}.pdf"
+    """Create a PDF file from a HTML string and return the file name within its bucket."""
+    filename = f"empresas/{empresa_id}/DTE/{DTE_type}/{count}.pdf"
     pdf_bytes = HTML(string=html_string).write_pdf()
-    url = _upload_to_bucket(pdf_bytes, filename, firebase_bucket_name, file_type="pdf")
-    return url
+    file_name_in_bucket = _upload_to_bucket(pdf_bytes, filename, file_type="pdf")
+    return file_name_in_bucket
 
 
 def upload_xml_string_to_bucket(
     empresa_id,
     xml_string,
     document_type,
-    firebase_bucket_name,  # parameter just for now
+    DTE_type = "GD",
     count=0,
     id="",
 ):
     """
     Convert the XML string into a XML object, upload it to the bucket
-    and return the public URL.
+    and return the file name within its bucket.
     """
-    # tree = ET.XML(xml_string)
     tree = ET.fromstring(bytes(xml_string, encoding="latin1"))
-    if document_type == "CAF":
-        filename = f"CAF{empresa_id}n{count}.xml"
-    elif document_type == "GD":
-        filename = f"DTE_GD_{empresa_id}f{count}.xml"
+    if document_type == "CAF" and DTE_type == "GD":
+        filename =  f"empresas/{empresa_id}/CAF/{DTE_type}/{count}.xml"
+    elif document_type == "DTE" and DTE_type == "GD":
+        filename = f"empresas/{empresa_id}/DTE/{DTE_type}/{count}.xml"
     elif document_type == "SOBRE":
-        filename = f"SOBRE_{id}.xml"
+        filename = f"empresas/{empresa_id}/SOBRES/{id}.xml"
 
     string = ET.tostring(tree, encoding="latin1")
-    url = _upload_to_bucket(string, filename, firebase_bucket_name, file_type="xml")
-    return url
+    xml_filename_in_bucket = _upload_to_bucket(string, filename, file_type="xml")
+    return xml_filename_in_bucket
 
 
-def _upload_to_bucket(file_to_upload, file_name, bucket_name, file_type="xml"):
-    """Upload the XML file to the bucket and return the public URL."""
+def _upload_to_bucket(file_to_upload, file_name, file_type="xml"):
+    """Upload the XML file to the bucket and return the file name within its bucket."""
 
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(bucket_name)
+    bucket = get_firebase_storage_bucket()
     blob = bucket.blob(file_name)
     # This is to avoid the caching of the file, which makes the file not to be updated
     # when the same file name is used.
     blob.cache_control = "no-cache, max-age=0"
     blob.upload_from_string(file_to_upload, content_type=f"application/{file_type}")
-    blob.make_public()
-    return blob.public_url
+    return file_name
 
 
-def _read_from_bucket(file_name, bucket_name):
+# Now with Firebase
+def _read_from_bucket(file_name):
     """Read the XML file from the bucket and return it in buffer."""
 
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(bucket_name)
+    bucket = get_firebase_storage_bucket()
     blob = bucket.blob(file_name)
     bucket_file = blob.download_as_bytes()
     return bucket_file
+
+
+# Previously with GCP directly
+# def _read_from_bucket(file_name, bucket_name):
+#     """Read the XML file from the bucket and return it in buffer."""
+
+#     storage_client = storage.Client()
+#     bucket = storage_client.get_bucket(bucket_name)
+#     blob = bucket.blob(file_name)
+#     bucket_file = blob.download_as_bytes()
+#     return bucket_file
+
+

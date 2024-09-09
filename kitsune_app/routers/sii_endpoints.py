@@ -1,8 +1,9 @@
 # change requests if async http calls are needed for more concurrent requests
-import datetime
 import json
+import random
+from time import sleep
 
-import requests  # type: ignore
+import requests
 
 from fastapi import APIRouter, Depends
 
@@ -13,9 +14,8 @@ from kitsune_app.schemas.dte import (
     GenerateGuiaDespachoIn,
     GenerateSobreIn,
     InfoEnvioIn,
-    ObtainFoliosIn,
 )
-from kitsune_app.settings import AUTH, FIREBASE_BUCKET
+from kitsune_app.settings import AUTH
 from kitsune_app.utils import (
     certificate_file,
     create_and_upload_pdf_from_html_string,
@@ -27,34 +27,6 @@ from kitsune_app.utils import (
 
 
 router = APIRouter(tags=["SII"])
-
-
-# GET 127.0.0.1:8000/folios/770685532
-@router.get("/folios/{empresa_id}")
-def available_folios(context: EmpresaContext = Depends(empresa_context)):
-    try:
-        empresa_id = context.empresa_id
-        certificate = context.pfx_certificate
-        url = "https://servicios.simpleapi.cl/api/folios/get/52/"
-        body = {
-            **certificate,
-            "RutEmpresa": empresa_id_to_rut_empresa(empresa_id),
-            "Ambiente": 0,
-        }
-        payload = {"input": str(dict(body))}
-        files = [certificate_file(empresa_id)]
-        headers = {"Authorization": AUTH}
-        # TODO: use httpx instead of requests
-        response = requests.post(url, headers=headers, data=payload, files=files)
-        return {
-            "status_code": response.status_code,
-            "reason": response.reason,
-            "text": response.text,
-        }
-    except requests.exceptions.RequestException as e:
-        raise SystemExit(e)
-    except Exception as e:
-        raise SystemExit(e)
 
 
 # Genera un DTE Guia de Despacho en un archivo .xml
@@ -81,7 +53,7 @@ def generate_dte_guiadespacho(
         files = [
             certificate_file(empresa_id),
             get_xml_file_tuple_for_request(
-                empresa_id, "CAF", FIREBASE_BUCKET, folio_or_sobre_count=folio
+                empresa_id, "CAF", folio_or_sobre_count=folio
             ),
         ]
         headers = {"Authorization": AUTH}
@@ -93,8 +65,8 @@ def generate_dte_guiadespacho(
             guia_xml = response_xml.text
             # Upload the XML to Firebase Storage
             print("Uploading XML file to Firebase Storage...")
-            xml_url = upload_xml_string_to_bucket(
-                empresa_id, guia_xml, "GD", FIREBASE_BUCKET, folio
+            xml_file_name = upload_xml_string_to_bucket(
+                empresa_id, guia_xml, "DTE", count=folio
             )
             try:
                 # Get the barcode from SimpleAPI
@@ -102,7 +74,7 @@ def generate_dte_guiadespacho(
                 url = "https://api.simpleapi.cl/api/v1/impresion/timbre"
                 print("Generating barcode...")
                 gd_file = get_xml_file_tuple_for_request(
-                    empresa_id, "GD", FIREBASE_BUCKET, folio_or_sobre_count=folio
+                    empresa_id, "DTE", folio_or_sobre_count=folio
                 )
                 files = [gd_file]
                 response_barcode = requests.post(url, headers=headers, files=files)
@@ -118,7 +90,7 @@ def generate_dte_guiadespacho(
                 )
 
                 # Get logo from Firebase Storage in base64 and replace it in the HTML
-                logo_base64 = get_logo_base64(empresa_id, FIREBASE_BUCKET)
+                logo_base64 = get_logo_base64(empresa_id)
                 pdf_html_string_with_barcode = pdf_html_string_with_barcode.replace(
                     '<img src="placeholder.png" alt="logo" />',
                     f'<img src="data:image/png;base64,{logo_base64}"'
@@ -127,63 +99,61 @@ def generate_dte_guiadespacho(
 
                 # Generate the PDF from the HTML string
                 print("Generating PDF file...")
-                pdf_url = create_and_upload_pdf_from_html_string(
-                    empresa_id, pdf_html_string_with_barcode, FIREBASE_BUCKET, folio
+                pdf_file_name = create_and_upload_pdf_from_html_string(
+                    empresa_id, pdf_html_string_with_barcode, count= folio
                 )
 
                 if response_barcode.status_code == 200:
-                    print(
-                        f'"[{response_barcode.status_code}] PDF'
-                        f'URL for Guia Folio {folio}: {pdf_url}"'
-                    )
-                    return {
+                    response_to_firebase = {
                         "status_code": response_barcode.status_code,
                         "message": "XML y PDF generado correctamente",
-                        "xml_url": xml_url,
-                        "pdf_url": pdf_url,
+                        "xml_file_name": xml_file_name,
+                        "pdf_file_name": pdf_file_name,
                     }
+                    print(response_to_firebase)
+                    return response_to_firebase
                 else:
-                    print(
-                        f'"[{response_barcode.status_code}]'
-                        f"{response_barcode.reason}:"
-                        '{response_barcode.text}"'
-                    )
-                    return {
+                    response_to_firebase = {
                         "status_code": response_barcode.status_code,
                         "message": f"[barcode]{response_barcode.reason}:"
                         f'{response_barcode.text}"',
                     }
+                    print(response_to_firebase)
+                    return response_to_firebase
             except Exception as e:
-                print(e)
-                return {
+                response_to_firebase = {
                     "status_code": 600,
                     "message": "[barcode] XML generado, error en creacion de PDF",
-                    "url": xml_url,
+                    "xml_file_name": xml_file_name,
                 }
+                print(e)
+                print(response_to_firebase)
+                return response_to_firebase
         else:
-            print(
-                f"{response_xml.status_code}:"
-                f"{response_xml.reason}:"
-                f"{response_xml.text}"
-            )
-            return {
+            response_to_firebase = {
                 "status_code": response_xml.status_code,
                 "message": f"{response_xml.reason}: {response_xml.text}",
             }
+            print(response_to_firebase)
+            return response_to_firebase
 
     except requests.exceptions.RequestException as e:
         print(e)
-        return {
-            "status_code": e.response.status_code,
+        response_to_firebase = {
+            "status_code": e.response.status_code, # type: ignore
             "message": str(e),
         }
+        print(response_to_firebase)
+        return response_to_firebase
 
     except Exception as e:
-        print(e)
-        return {
+        response_to_firebase = {
             "status_code": 601,
             "message": str(e),
         }
+        print(e)
+        print(response_to_firebase)
+        return response_to_firebase
 
 
 @router.post("/sobre/{empresa_id}")
@@ -210,33 +180,30 @@ def generate_sobre(
         folios_sin_enviar = generate_sobre_params.folios
         files = [certificate_file(empresa_id)]
         for folio in folios_sin_enviar:
-            files.append(
-                get_xml_file_tuple_for_request(
-                    empresa_id, "GD", FIREBASE_BUCKET, folio_or_sobre_count=folio
-                )
-            )
-        print(f"payload: {payload}")
-        print(f"files: {files}")
+            dte_file = get_xml_file_tuple_for_request(empresa_id, "DTE", folio_or_sobre_count=folio)
+            files.append(dte_file) # type: ignore
         headers = {"Authorization": AUTH}
         # TODO: use httpx instead of requests
         response = requests.post(url, headers=headers, data=payload, files=files)
-        print(response.status_code)
-        print(response.reason)
         if response.status_code == 200:
-            url = upload_xml_string_to_bucket(
+            xml_file_name = upload_xml_string_to_bucket(
                 empresa_id,
                 response.text,
                 "SOBRE",
-                FIREBASE_BUCKET,
                 id=generate_sobre_params.sobre_id,
             )
             return {
                 "status_code": response.status_code,
                 "reason": response.reason,
-                "url": url,
+                "xml_file_name": xml_file_name,
             }
         else:
-            print(f"{response.status_code}: {response.reason}: {response.text}")
+            response_to_firebase = {
+                "status_code": response.status_code,
+                "message": f"{response.reason}: {response.text}",
+            }
+            print(response)
+            print(response_to_firebase)
             return {
                 "status_code": response.status_code,
                 "message": f"{response.reason}: {response.text}",
@@ -244,10 +211,20 @@ def generate_sobre(
 
     except requests.exceptions.RequestException as e:
         print(e)
-        raise SystemExit(e)
+        response_to_firebase = {
+            "status_code": e.response.status_code, # type: ignore
+            "message": str(e),
+        }
+        print(response_to_firebase)
+        return response_to_firebase
     except Exception as e:
         print(e)
-        raise SystemExit(e)
+        response_to_firebase = {
+            "status_code": e.response.status_code, # type: ignore
+            "message": str(e),
+        }
+        print(response_to_firebase)
+        return response_to_firebase
 
 
 # Se envian los sobres de envio de DTEs que no han sido enviados al SII.
@@ -270,34 +247,56 @@ def enviar_sobre(
         files = [
             certificate_file(empresa_id),
             get_xml_file_tuple_for_request(
-                empresa_id, "SOBRE", FIREBASE_BUCKET, id=sobre_id
+                empresa_id, "SOBRE", id=sobre_id
             ),
         ]
         headers = {"Authorization": AUTH}
         # TODO: use httpx instead of requests
         response = requests.post(url, headers=headers, data=payload, files=files)
-        # TODO: ERROR HERE
-        print(response.status_code)
-        print(response.reason)
-        print(response.text)
+        retries = 0
+        while response.status_code == 400 and retries < 5:
+            print(f"INTENTO NÚMERO {1 + retries} DE ENVIAR SOBRE {sobre_id}...")
+            response = requests.post(url, headers=headers, data=payload, files=files)
+            retries += 1
+            # wait for some time before retrying
+            sleep(1 + retries)
         if response.status_code == 200:
             response_dict = json.loads(response.text)
-            print(response_dict["trackId"])
-            return {
+            response_to_firebase = {
                 "status_code": response.status_code,
                 "reason": response.reason,
                 "text": response.text,
                 "trackId": response_dict.get("trackId", "Send Failed"),
             }
+            print(response_to_firebase)
+            return response_to_firebase
         else:
+            response_to_firebase = {
+                "status_code": response.status_code,
+                "message": f"{response.reason}: {response.text}",
+            }
+            print(response)
+            print(response_to_firebase)
             return {
                 "status_code": response.status_code,
                 "message": f"{response.reason}: {response.text}",
             }
     except requests.exceptions.RequestException as e:
-        raise SystemExit(e)
+        print(e)
+        response_to_firebase = {
+            "status_code": e.response.status_code, # type: ignore
+            "message": str(e),
+        }
+        print(response_to_firebase)
+        return response_to_firebase
     except Exception as e:
-        raise SystemExit(e)
+        print(e)
+        response_to_firebase = {
+            "status_code": e.response.status_code, # type: ignore
+            "message": str(e),
+        }
+        print(response_to_firebase)
+        return response_to_firebase
 
 
 # Se obtiene el estado del sobre de envío que fue enviado al SII
@@ -323,11 +322,25 @@ def get_sobre_status(track_id: int, context: EmpresaContext = Depends(empresa_co
         headers = {"Authorization": AUTH}
         url = "https://api.simpleapi.cl/api/v1/consulta/envio"
         response = requests.post(url, headers=headers, data=payload, files=files)
+        estados = []
+        # Extraemos el estado del DTE del sobre de envío en caso de que haya sido enviado
+        response_dict = json.loads(response.text) if response.status_code == 200 else {}
+        estados = response_dict.get("estados", [])
+        retries = 0
+        while (response.status_code == 400 and retries < 5) or (response.status_code == 200 and len(estados) == 0 and retries < 10):
+            print(f"INTENTO NÚMERO {1 + retries} DE CONSULTAR ESTADO DE SOBRE {track_id}...")
+            response = requests.post(url, headers=headers, data=payload, files=files)
+            response_dict = json.loads(response.text) if response.status_code == 200 else {}
+            estados = response_dict.get("estados", [])
+            retries += 1
+            # wait for some time before retrying
+            sleep(1 + retries)
+        
         if response.status_code == 200:
             # Parse string to json
-            response_dict = json.loads(response.text)
-            estados: list = response_dict.get("estados", [])
-            print(response_dict)
+            if len(estados) == 0:
+                estados = "Send Failed"
+            
             return {
                 "status_code": response.status_code,
                 "reason": response.reason,
@@ -353,7 +366,7 @@ def get_validacion_dte(folio: int, context: EmpresaContext = Depends(empresa_con
         payload = {"input": "{Tipo:1}"}
         files = [
             get_xml_file_tuple_for_request(
-                empresa_id, "GD", FIREBASE_BUCKET, folio_or_sobre_count=folio
+                empresa_id, "DTE", folio_or_sobre_count=folio
             ),
         ]
         headers = {"Authorization": AUTH}
@@ -413,6 +426,34 @@ def consultar_estado_dte(
             "text": response.text,
         }
 
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
+    except Exception as e:
+        raise SystemExit(e)
+
+
+# GET 127.0.0.1:8000/folios/770685532
+@router.get("/folios/{empresa_id}")
+def available_folios(context: EmpresaContext = Depends(empresa_context)):
+    try:
+        empresa_id = context.empresa_id
+        certificate = context.pfx_certificate
+        url = "https://servicios.simpleapi.cl/api/folios/get/52/"
+        body = {
+            **certificate,
+            "RutEmpresa": empresa_id_to_rut_empresa(empresa_id),
+            "Ambiente": 0,
+        }
+        payload = {"input": str(dict(body))}
+        files = [certificate_file(empresa_id)]
+        headers = {"Authorization": AUTH}
+        # TODO: use httpx instead of requests
+        response = requests.post(url, headers=headers, data=payload, files=files)
+        return {
+            "status_code": response.status_code,
+            "reason": response.reason,
+            "text": response.text,
+        }
     except requests.exceptions.RequestException as e:
         raise SystemExit(e)
     except Exception as e:

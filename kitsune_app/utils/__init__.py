@@ -1,4 +1,3 @@
-from .auth import auth_to_base64
 from .files import (
     certificate_file,
     create_and_upload_pdf_from_html_string,

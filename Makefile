@@ -5,6 +5,9 @@ deploy:
 	gcloud run deploy kitsune-api --port 8080 --source .
 
 # Run the app locally using docker-compose
+# Requests to the app will be served at http://localhost:8180/
+# To develop, remember to use the Dev Containers in VSCode extension, and attach VSCode to the running container so we can explore the libraries and the code
+# as it is installed in the container itself (e.g. we can explore firebase_admin library and get code suggestions)
 .PHONY: docker compose up
 docker-compose-up:
 	docker compose up
@@ -20,6 +23,47 @@ docker-shell:
 	docker exec -it kitsune_container bash
 
 
+# Linters
+# Must be run inside a venv with the requirements installed
+# =======
+.PHONY: black
+black:
+	black ./kitsune_app/
+
+.PHONY: black!
+black!:
+	black ./kitsune_app/ --check
+
+.PHONY: flake8
+flake8:
+	flake8 ./kitsune_app/
+
+.PHONY: isort
+isort:
+	isort ./kitsune_app/
+
+.PHONY: isort!
+isort!:
+	isort ./kitsune_app/ --check-only
+
+.PHONY: mypy
+mypy:
+	mypy \
+	./kitsune_app/middlewares \
+	./kitsune_app/routers \
+	./kitsune_app/utils \
+	./kitsune_app/main.py \
+	./kitsune_app/settings.py
+
+
+# Run linters
+.PHONY: pylinters
+pylinters:
+	make black flake8 isort mypy
+
+.PHONY: pylinters!
+pylinters!:
+	make black! flake8 isort! mypy
 
 
 
@@ -67,47 +111,3 @@ restart:
 
 
 	
-
-
-
-# Linters
-# Must be run inside a venv with the requirements installed
-# =======
-.PHONY: black
-black:
-	black ./kitsune_app/
-
-.PHONY: black!
-black!:
-	black ./kitsune_app/ --check
-
-.PHONY: flake8
-flake8:
-	flake8 ./kitsune_app/
-
-.PHONY: isort
-isort:
-	isort ./kitsune_app/
-
-.PHONY: isort!
-isort!:
-	isort ./kitsune_app/ --check-only
-
-.PHONY: mypy
-mypy:
-	mypy \
-	./kitsune_app/middlewares \
-	./kitsune_app/routers \
-	./kitsune_app/utils \
-	./kitsune_app/main.py \
-	./kitsune_app/settings.py
-
-
-# Run linters
-.PHONY: pylinters
-pylinters:
-	make black flake8 isort mypy
-
-.PHONY: pylinters!
-pylinters!:
-	make black! flake8 isort! mypy

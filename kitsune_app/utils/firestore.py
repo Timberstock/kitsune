@@ -4,7 +4,7 @@ from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-from kitsune_app.setup.firebase import firestore_client
+from kitsune_app.setup.firebase import get_firestore_client
 
 
 def _decrypt_password(encrypted_password, salt):
@@ -29,7 +29,7 @@ def _decrypt_password(encrypted_password, salt):
 def get_certificate_credentials(empresa_id: str, salt) -> dict:
     """Gets the pfx certificate credentials from firestore"""
     # Maybe it should create a new client each time for paralelism
-    db = firestore_client()
+    db = get_firestore_client()
     doc_ref = (
         db.collection("credenciales_pfx").where("empresa_id", "==", empresa_id).limit(1)
     )

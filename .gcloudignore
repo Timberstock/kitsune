@@ -25,6 +25,7 @@
 .git
 .gitignore
 timberstock-firebase-firebase-adminsdk-psiev-6abd4cfb7a.json
+cert_password_encryption_script.py
 
 # Python pycache:
 

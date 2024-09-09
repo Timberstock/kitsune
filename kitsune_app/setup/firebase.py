@@ -1,19 +1,19 @@
 from contextvars import ContextVar
 
-import firebase_admin  # type: ignore
+from kitsune_app.settings import FIREBASE_BUCKET
 
-from firebase_admin import firestore
+import firebase_admin
+import firebase_admin.firestore
+import firebase_admin.storage
 
-
-db = ContextVar("Firestore_Database_Client", default=None)
-
-
-def _initialize_firestore_client():
-    _db = firebase_admin.firestore.client()
-    db.set(_db)
+import google.cloud.firestore
+import google.cloud.storage
 
 
-def firestore_client() -> firestore.client:
+db = ContextVar("Firestore_Database_Client")
+bucket = ContextVar("Firebase_Storage_Client")
+
+def get_firestore_client() ->  google.cloud.firestore.Client:
     """
     Returns the firestore database client in the actual context.
 
@@ -23,9 +23,21 @@ def firestore_client() -> firestore.client:
     return db.get()
 
 
+def get_firebase_storage_bucket() -> google.cloud.storage.Bucket:
+    """
+    Returns the default firebase storage client in the actual context.
+    """
+    return bucket.get()
+
+
 def firebase_setup():
     """
     Initializes everything regarding firebase setup, function to be called once in main
     """
-    firebase_admin.initialize_app()
-    _initialize_firestore_client()
+    firebase_admin.initialize_app(options={
+    'storageBucket': f'{FIREBASE_BUCKET}'
+})
+    _db = firebase_admin.firestore.client()
+    db.set(_db)
+    _bucket = firebase_admin.storage.bucket()
+    bucket.set(_bucket)
