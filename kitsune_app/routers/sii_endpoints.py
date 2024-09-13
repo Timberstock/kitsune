@@ -1,6 +1,7 @@
 # change requests if async http calls are needed for more concurrent requests
 import json
 from time import sleep
+from typing import Optional
 
 import requests
 
@@ -41,18 +42,21 @@ def generate_dte_guiadespacho(
     a .xml file and another one for .pdf if succeeds (stored in Firestore)
     """
     try:
+        print(context)
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
+        caf_step = generate_dte_params.caf_step
+        
         url = "https://api.simpleapi.cl/api/v1/dte/generar"
         payload = {
-            "input": str({"Documento": guia_despacho, "Certificado": certificate})
+            "input": str({"Documento": guia_despacho, "Certificado": certificate, })
         }
         print(guia_despacho)
         folio = int(guia_despacho["Encabezado"]["IdentificacionDTE"]["Folio"])
         files = [
             certificate_file(empresa_id),
             get_xml_file_tuple_for_request(
-                empresa_id, "CAF", folio_or_sobre_count=folio
+                empresa_id, "CAF", CAF_step=caf_step, folio_or_sobre_count=folio
             ),
         ]
         headers = {"Authorization": AUTH}
@@ -241,6 +245,7 @@ def enviar_sobre(
         sobre_id = info_envio_body.sobres_document_ids[0]
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
+        
         info_envio = dict(info_envio_body)
         info_envio["Certificado"] = certificate
         payload = {"input": str(info_envio)}
@@ -302,15 +307,16 @@ def enviar_sobre(
 # y que aun no se sabe si fueron aceptados o rechazados (estado indeterminado
 # o pendiente en la base de datos)
 @router.get("/sobre/{empresa_id}/{track_id}")
-def get_sobre_status(track_id: int, context: EmpresaContext = Depends(empresa_context)):
+def get_sobre_status(track_id: int, ambiente: Optional[int] = 0, context: EmpresaContext = Depends(empresa_context)):
     try:
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
+        
         body = {
             "RutEmpresa": empresa_id_to_rut_empresa(empresa_id),
             # probably read them from a queue
             "TrackId": track_id,
-            "Ambiente": 0,
+            "Ambiente": ambiente,
             "ServidorBoletaREST": "false",
         }
         body["Certificado"] = certificate

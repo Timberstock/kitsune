@@ -10,9 +10,9 @@ from kitsune_app.setup.firebase import get_firebase_storage_bucket
 def get_xml_file_tuple_for_request(
     empresa_id,
     file_type,
+    CAF_step=0,
     DTE_type="GD",
     folio_or_sobre_count=0,
-    CAF_step=50,
     id="",
 ):
     """Open the .xml file from cloud storage and return it in buffer.

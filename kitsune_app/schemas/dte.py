@@ -11,13 +11,13 @@ class ConsultarEstadoDTEIn(BaseModel):
     monto: int
     tipo_dte: int = 52
     ambiente: int = 0
-
+    
 
 # ENVIAR SOBRE
 class InfoEnvioIn(BaseModel):
     sobres_document_ids: list
     Tipo: int = 1
-    Ambiente: int = 0
+    Ambiente: int = 0 # 0 ambiente certificacion, 1 ambiente produccion
 
 
 # GENERAR SOBRE
@@ -150,3 +150,4 @@ class Dte(BaseModel):
 class GenerateGuiaDespachoIn(BaseModel):
     dte: Dte
     pdf_html_string: str
+    caf_step: int # = 50

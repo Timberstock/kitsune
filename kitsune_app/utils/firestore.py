@@ -34,7 +34,7 @@ def get_certificate_credentials(empresa_id: str, salt) -> dict:
         db.collection("credenciales_pfx").where("empresa_id", "==", empresa_id).limit(1)
     )
     docs = doc_ref.get()
-    doc = docs[0].to_dict()
+    doc = docs[0].to_dict() # type: ignore
     pfx_certificate_credentials = {
         "Rut": doc["rut_certificado"],
         "Password": _decrypt_password(doc["password"].encode(), salt),
