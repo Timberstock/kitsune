@@ -46,10 +46,15 @@ def generate_dte_guiadespacho(
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
         caf_step = generate_dte_params.caf_step
-        
+
         url = "https://api.simpleapi.cl/api/v1/dte/generar"
         payload = {
-            "input": str({"Documento": guia_despacho, "Certificado": certificate, })
+            "input": str(
+                {
+                    "Documento": guia_despacho,
+                    "Certificado": certificate,
+                }
+            )
         }
         print(guia_despacho)
         folio = int(guia_despacho["Encabezado"]["IdentificacionDTE"]["Folio"])
@@ -85,6 +90,7 @@ def generate_dte_guiadespacho(
                 # Embed the image in the HTML string
                 pdf_html_string_with_barcode = pdf_html_string.replace(
                     "</body>",
+                    "<p><br /></p>"
                     '<div style="position: absolute; left: 187.5px">'
                     f'<img src="data:image/png;base64,{barcode_png_base64}"'
                     'style="width: 275px; height: 132px" />'
@@ -176,6 +182,7 @@ def generate_sobre(
         # SEND FROM CLOUD FUNCTIONS THIS INFO
         caratula_info = generate_sobre_params.caratula.dict()
         caratula = dict(caratula_info)
+        print(caratula)
         if caratula["RutEmisor"] is None:
             caratula["RutEmisor"] = empresa_id_to_rut_empresa(empresa_id)
         payload = {"input": str({"Certificado": certificate, "Caratula": caratula})}
@@ -245,7 +252,7 @@ def enviar_sobre(
         sobre_id = info_envio_body.sobres_document_ids[0]
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
-        
+
         info_envio = dict(info_envio_body)
         info_envio["Certificado"] = certificate
         payload = {"input": str(info_envio)}
@@ -307,11 +314,15 @@ def enviar_sobre(
 # y que aun no se sabe si fueron aceptados o rechazados (estado indeterminado
 # o pendiente en la base de datos)
 @router.get("/sobre/{empresa_id}/{track_id}")
-def get_sobre_status(track_id: int, ambiente: Optional[int] = 0, context: EmpresaContext = Depends(empresa_context)):
+def get_sobre_status(
+    track_id: int,
+    ambiente: Optional[int] = 0,
+    context: EmpresaContext = Depends(empresa_context),
+):
     try:
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
-        
+
         body = {
             "RutEmpresa": empresa_id_to_rut_empresa(empresa_id),
             # probably read them from a queue
