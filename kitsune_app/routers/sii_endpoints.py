@@ -46,6 +46,7 @@ def generate_dte_guiadespacho(
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
         caf_step = generate_dte_params.caf_step
+        versionGuia = generate_dte_params.version
 
         url = "https://api.simpleapi.cl/api/v1/dte/generar"
         payload = {
@@ -74,7 +75,7 @@ def generate_dte_guiadespacho(
             # Upload the XML to Firebase Storage
             print("Uploading XML file to Firebase Storage...")
             xml_file_name = upload_xml_string_to_bucket(
-                empresa_id, guia_xml, "DTE", count=folio
+                empresa_id, guia_xml, "DTE", count=folio, version=versionGuia
             )
             try:
                 # Get the barcode from SimpleAPI
@@ -82,7 +83,7 @@ def generate_dte_guiadespacho(
                 url = "https://api.simpleapi.cl/api/v1/impresion/timbre"
                 print("Generating barcode...")
                 gd_file = get_xml_file_tuple_for_request(
-                    empresa_id, "DTE", folio_or_sobre_count=folio
+                    empresa_id, "DTE", folio_or_sobre_count=folio, version=versionGuia
                 )
                 files = [gd_file]
                 response_barcode = requests.post(url, headers=headers, files=files)
@@ -109,7 +110,10 @@ def generate_dte_guiadespacho(
                 # Generate the PDF from the HTML string
                 print("Generating PDF file...")
                 pdf_file_name = create_and_upload_pdf_from_html_string(
-                    empresa_id, pdf_html_string_with_barcode, count=folio
+                    empresa_id,
+                    pdf_html_string_with_barcode,
+                    count=folio,
+                    version=versionGuia,
                 )
 
                 if response_barcode.status_code == 200:
@@ -179,6 +183,7 @@ def generate_sobre(
     try:
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
+        versionGuia = generate_sobre_params.version
         # SEND FROM CLOUD FUNCTIONS THIS INFO
         caratula_info = generate_sobre_params.caratula.dict()
         caratula = dict(caratula_info)
@@ -191,7 +196,7 @@ def generate_sobre(
         files = [certificate_file(empresa_id)]
         for folio in folios_sin_enviar:
             dte_file = get_xml_file_tuple_for_request(
-                empresa_id, "DTE", folio_or_sobre_count=folio
+                empresa_id, "DTE", folio_or_sobre_count=folio, version=versionGuia
             )
             files.append(dte_file)  # type: ignore
         headers = {"Authorization": AUTH}

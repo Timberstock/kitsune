@@ -14,6 +14,7 @@ def get_xml_file_tuple_for_request(
     DTE_type="GD",
     folio_or_sobre_count=0,
     id="",
+    version=0,  # This is only for the DTE that are repetidos
 ):
     """Open the .xml file from cloud storage and return it in buffer.
     Keep in mind that the CAF_step must be sync with the ObtainFoliosIn.amount in dte.py
@@ -23,6 +24,10 @@ def get_xml_file_tuple_for_request(
         file_name = f"empresas/{empresa_id}/CAF/{DTE_type}/{CAF_number}.xml"
     elif file_type == "DTE" and DTE_type == "GD":
         file_name = f"empresas/{empresa_id}/DTE/{DTE_type}/{folio_or_sobre_count}.xml"
+        # Add the version to the DTE filename if it is > 0
+        if version > 0:
+            # Alter the filename to include the version number right before the extension .xml
+            file_name = file_name.replace(".xml", f"_{version}.xml")
     elif file_type == "SOBRE":
         file_name = f"empresas/{empresa_id}/SOBRES/{id}.xml"
 
@@ -76,9 +81,12 @@ def create_and_upload_pdf_from_html_string(
     html_string,
     DTE_type="GD",
     count=0,
+    version=0,  # This is only for the DTE that are repetidos
 ):
     """Create a PDF from a HTML string and return the file name within its bucket."""
     filename = f"empresas/{empresa_id}/DTE/{DTE_type}/{count}.pdf"
+    if version > 0:
+        filename = filename.replace(".pdf", f"_{version}.pdf")
     pdf_bytes = HTML(string=html_string).write_pdf()
     file_name_in_bucket = _upload_to_bucket(pdf_bytes, filename, file_type="pdf")
     return file_name_in_bucket
@@ -91,6 +99,7 @@ def upload_xml_string_to_bucket(
     DTE_type="GD",
     count=0,
     id="",
+    version=0,  # This is only for the DTE that are repetidos
 ):
     """
     Convert the XML string into a XML object, upload it to the bucket
@@ -101,6 +110,10 @@ def upload_xml_string_to_bucket(
         filename = f"empresas/{empresa_id}/CAF/{DTE_type}/{count}.xml"
     elif document_type == "DTE" and DTE_type == "GD":
         filename = f"empresas/{empresa_id}/DTE/{DTE_type}/{count}.xml"
+        # Add the version to the DTE filename if it is > 0
+        if version > 0:
+            # Alter the filename to include the version number right before the extension .xml
+            filename = filename.replace(".xml", f"_{version}.xml")
     elif document_type == "SOBRE":
         filename = f"empresas/{empresa_id}/SOBRES/{id}.xml"
 
