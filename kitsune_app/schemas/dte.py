@@ -138,7 +138,7 @@ class Encabezado(BaseModel):
     Emisor: Emisor
     Receptor: Receptor
     Totales: Totales
-    Transporte: Transporte
+    Transporte: Optional[Transporte]  # En caso de factura es opcional
 
 
 class Dte(BaseModel):
@@ -153,3 +153,11 @@ class GenerateGuiaDespachoIn(BaseModel):
     pdf_html_string: str
     caf_step: int  # = 50
     version: int = 0
+
+
+class GenerateFacturaIn(BaseModel):
+    dte: Dte
+    # pdf_html_string: str
+    caf_step: int  # = 50
+    version: int = 0
+    datos_extra: Caratula

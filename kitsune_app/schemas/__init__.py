@@ -5,4 +5,5 @@ from .dte import (
     GenerateSobreIn,
     InfoEnvioIn,
     ObtainFoliosIn,
+    GenerateFacturaIn,
 )

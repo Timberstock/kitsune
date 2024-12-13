@@ -7,18 +7,23 @@ import requests
 
 from fastapi import APIRouter, Depends
 
-from kitsune_app.dependencies.sii import document_to_guia, empresa_context
+from kitsune_app.dependencies.sii import (
+    document_to_factura,
+    document_to_guia,
+    empresa_context,
+)
 from kitsune_app.schemas import EmpresaContext
 from kitsune_app.schemas.dte import (
     ConsultarEstadoDTEIn,
     GenerateGuiaDespachoIn,
+    GenerateFacturaIn,
     GenerateSobreIn,
     InfoEnvioIn,
 )
 from kitsune_app.settings import AUTH
 from kitsune_app.utils import (
     certificate_file,
-    create_and_upload_pdf_from_html_string,
+    create_and_upload_pdf,
     empresa_id_to_rut_empresa,
     get_logo_base64,
     get_xml_file_tuple_for_request,
@@ -109,7 +114,7 @@ def generate_dte_guiadespacho(
 
                 # Generate the PDF from the HTML string
                 print("Generating PDF file...")
-                pdf_file_name = create_and_upload_pdf_from_html_string(
+                pdf_file_name = create_and_upload_pdf(
                     empresa_id,
                     pdf_html_string_with_barcode,
                     count=folio,
@@ -137,6 +142,160 @@ def generate_dte_guiadespacho(
                 response_to_firebase = {
                     "status_code": 600,
                     "message": "[barcode] XML generado, error en creacion de PDF",
+                    "xml_file_name": xml_file_name,
+                }
+                print(e)
+                print(response_to_firebase)
+                return response_to_firebase
+        else:
+            response_to_firebase = {
+                "status_code": response_xml.status_code,
+                "message": f"{response_xml.reason}: {response_xml.text}",
+            }
+            print(response_to_firebase)
+            return response_to_firebase
+
+    except requests.exceptions.RequestException as e:
+        print(e)
+        response_to_firebase = {
+            "status_code": e.response.status_code,  # type: ignore
+            "message": str(e),
+        }
+        print(response_to_firebase)
+        return response_to_firebase
+
+    except Exception as e:
+        response_to_firebase = {
+            "status_code": 601,
+            "message": str(e),
+        }
+        print(e)
+        print(response_to_firebase)
+        return response_to_firebase
+
+
+# Genera un DTE FACTURA en un archivo .xml
+@router.post("/dte/{empresa_id}/factura")
+def generate_dte_factura(
+    generate_factura_params: GenerateFacturaIn,
+    factura: dict = Depends(document_to_factura),
+    context: EmpresaContext = Depends(empresa_context),
+):
+    """
+    Generates a DTE Factura in the params of the request and returns an url for the DTE in
+    a .xml file and another one for .pdf if succeeds (stored in Firestore)
+    """
+    try:
+        print(context)
+        empresa_id = context.empresa_id
+        certificate = context.pfx_certificate
+        caf_step = generate_factura_params.caf_step
+        datos_extra = generate_factura_params.datos_extra.dict()
+        datos_extra = dict(datos_extra)
+        versionDTE = generate_factura_params.version
+
+        url = "https://api.simpleapi.cl/api/v1/dte/generar"
+        payload = {
+            "input": str(
+                {
+                    "Documento": factura,
+                    "Certificado": certificate,
+                }
+            )
+        }
+        folio = int(factura["Encabezado"]["IdentificacionDTE"]["Folio"])
+        files = [
+            certificate_file(empresa_id),
+            get_xml_file_tuple_for_request(
+                empresa_id,
+                "CAF",
+                DTE_type="FA",
+                CAF_step=caf_step,
+                folio_or_sobre_count=folio,
+            ),
+        ]
+        headers = {"Authorization": AUTH}
+        # Get the XML from SimpleAPI as string
+        print("Generating XML file for Guia de Despacho...")
+        response_xml = requests.post(url, headers=headers, data=payload, files=files)
+
+        # print(response_xml.text)
+
+        if response_xml.status_code == 200:
+            guia_xml = response_xml.text
+            # Upload the XML to Firebase Storage
+            print("Uploading XML file to Firebase Storage...")
+            xml_file_name = upload_xml_string_to_bucket(
+                empresa_id,
+                guia_xml,
+                "DTE",
+                count=folio,
+                DTE_type="FA",
+                version=versionDTE,
+            )
+            print(xml_file_name)
+            try:
+                # Get the pdf from SimpleAPI
+                url = "https://api.simpleapi.cl/api/v1/impresion/pdf/carta/v1/"
+                fa_file = get_xml_file_tuple_for_request(
+                    empresa_id,
+                    "DTE",
+                    folio_or_sobre_count=folio,
+                    version=versionDTE,
+                    DTE_type="FA",
+                    file_tuple_name="fileEnvio",
+                )
+                files = [fa_file]
+                payload = {
+                    "input": str(
+                        {
+                            "NumeroResolucion": datos_extra.get("NumeroResolucion", ""),
+                            "FechaResolucion": datos_extra.get("FechaResolucion", ""),
+                            # "UnidadSII": "Calle ESTADO 154 DE RANCAGUA",
+                            # "Vendedor": "",
+                            # "FormaPago": "EFECTIVO",
+                            # "CondicionVenta": "EFECTIVO",
+                            # "PropiedadLogo": "contain",
+                        }
+                    ),
+                }
+                pdf_response = requests.post(
+                    url, data=payload, headers=headers, files=files
+                )
+
+                print(pdf_response.status_code)
+                if pdf_response.status_code == 200:
+                    # Create the PDF file and upload it to Firebase Storage.
+                    # The PDF is stored as bytes in pdf_response.content
+                    pdf_file_name = create_and_upload_pdf(
+                        empresa_id,
+                        pdf_response.content,  # Content of the PDF received from SimpleAPI as bytes
+                        DTE_type="FA",
+                        from_string=False,
+                        count=folio,
+                        version=versionDTE,
+                    )
+
+                    response_to_firebase = {
+                        "status_code": pdf_response.status_code,
+                        "message": "XML y PDF generado correctamente",
+                        "xml_file_name": xml_file_name,
+                        "pdf_file_name": pdf_file_name,
+                    }
+                    print(response_to_firebase)
+                    return response_to_firebase
+                else:
+                    response_to_firebase = {
+                        "status_code": pdf_response.status_code,
+                        "message": f"[PDF-SimpleAPI]{pdf_response.reason}:"
+                        f'{pdf_response.text}"',
+                    }
+                    print(response_to_firebase)
+                    return response_to_firebase
+            except Exception as e:
+                response_to_firebase = {
+                    "status_code": 600,
+                    "message": "[PDF] XML generado, error en creacion de PDF",
                     "xml_file_name": xml_file_name,
                 }
                 print(e)
@@ -272,10 +431,17 @@ def enviar_sobre(
         retries = 0
         while response.status_code == 400 and retries < 5:
             print(f"INTENTO NÚMERO {1 + retries} DE ENVIAR SOBRE {sobre_id}...")
+            print(response.reason)
+            print(response.text)
             response = requests.post(url, headers=headers, data=payload, files=files)
             retries += 1
             # wait for some time before retrying
             sleep(1 + retries)
+            if (
+                "Archivo ya fue enviado" in response.text
+                or "Schema inválido." in response.text
+            ):
+                break
         if response.status_code == 200:
             response_dict = json.loads(response.text)
             response_to_firebase = {
@@ -356,15 +522,22 @@ def get_sobre_status(
             response_text = (
                 json.loads(response.text) if response.status_code == 200 else {}
             )
+            print(response.status_code)
+            print(response.reason)
+            print(response.text)
             estados = response_text.get("estados", [])
             retries += 1
             # wait for some time before retrying
             sleep(1 + retries)
+        print(response.status_code)
+        print(response.reason)
+        print(response.text)
 
         if response.status_code == 200:
             # Parse string to json
             if len(estados) == 0:
                 estados = "Send Failed"
+            print(estados)
 
             return {
                 "status_code": response.status_code,

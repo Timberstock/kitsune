@@ -14,15 +14,16 @@ def get_xml_file_tuple_for_request(
     DTE_type="GD",
     folio_or_sobre_count=0,
     id="",
+    file_tuple_name="file",
     version=0,  # This is only for the DTE that are repetidos
 ):
     """Open the .xml file from cloud storage and return it in buffer.
     Keep in mind that the CAF_step must be sync with the ObtainFoliosIn.amount in dte.py
     """
-    if file_type == "CAF" and DTE_type == "GD":
+    if file_type == "CAF" and (DTE_type == "GD" or DTE_type == "FA"):
         CAF_number = (folio_or_sobre_count - 1) // CAF_step
         file_name = f"empresas/{empresa_id}/CAF/{DTE_type}/{CAF_number}.xml"
-    elif file_type == "DTE" and DTE_type == "GD":
+    elif file_type == "DTE" and (DTE_type == "GD" or DTE_type == "FA"):
         file_name = f"empresas/{empresa_id}/DTE/{DTE_type}/{folio_or_sobre_count}.xml"
         # Add the version to the DTE filename if it is > 0
         if version > 0:
@@ -36,7 +37,7 @@ def get_xml_file_tuple_for_request(
     _filename_for_simpleAPI = file_name.split("/")[-1]
 
     file_file = (
-        "file",
+        file_tuple_name,
         (
             _filename_for_simpleAPI,
             bucket_file,
@@ -76,18 +77,23 @@ def certificate_file(empresa_id: str):
     return cert_file
 
 
-def create_and_upload_pdf_from_html_string(
+def create_and_upload_pdf(
     empresa_id,
-    html_string,
+    pdf_content,
     DTE_type="GD",
     count=0,
     version=0,  # This is only for the DTE that are repetidos
+    from_string=True,
 ):
     """Create a PDF from a HTML string and return the file name within its bucket."""
     filename = f"empresas/{empresa_id}/DTE/{DTE_type}/{count}.pdf"
     if version > 0:
         filename = filename.replace(".pdf", f"_{version}.pdf")
-    pdf_bytes = HTML(string=html_string).write_pdf()
+    if from_string:
+        pdf_bytes = HTML(string=pdf_content).write_pdf()
+    else:
+        pdf_bytes = pdf_content
+
     file_name_in_bucket = _upload_to_bucket(pdf_bytes, filename, file_type="pdf")
     return file_name_in_bucket
 
@@ -106,9 +112,9 @@ def upload_xml_string_to_bucket(
     and return the file name within its bucket.
     """
     tree = ET.fromstring(bytes(xml_string, encoding="latin1"))
-    if document_type == "CAF" and DTE_type == "GD":
+    if document_type == "CAF" and (DTE_type == "GD" or DTE_type == "FA"):
         filename = f"empresas/{empresa_id}/CAF/{DTE_type}/{count}.xml"
-    elif document_type == "DTE" and DTE_type == "GD":
+    elif document_type == "DTE" and (DTE_type == "GD" or DTE_type == "FA"):
         filename = f"empresas/{empresa_id}/DTE/{DTE_type}/{count}.xml"
         # Add the version to the DTE filename if it is > 0
         if version > 0:

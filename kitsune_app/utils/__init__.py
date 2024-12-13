@@ -1,6 +1,6 @@
 from .files import (
     certificate_file,
-    create_and_upload_pdf_from_html_string,
+    create_and_upload_pdf,
     get_logo_base64,
     get_xml_file_tuple_for_request,
     upload_xml_string_to_bucket,
