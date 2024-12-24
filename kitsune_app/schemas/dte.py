@@ -151,13 +151,13 @@ class Dte(BaseModel):
 class GenerateGuiaDespachoIn(BaseModel):
     dte: Dte
     pdf_html_string: str
-    caf_step: int  # = 50
     version: int = 0
+    caf_file_name: str
 
 
 class GenerateFacturaIn(BaseModel):
     dte: Dte
     # pdf_html_string: str
-    caf_step: int  # = 50
     version: int = 0
     datos_extra: Caratula
+    caf_file_name: str

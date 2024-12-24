@@ -50,7 +50,7 @@ def generate_dte_guiadespacho(
         print(context)
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
-        caf_step = generate_dte_params.caf_step
+        caf_id = generate_dte_params.caf_file_name
         versionGuia = generate_dte_params.version
 
         url = "https://api.simpleapi.cl/api/v1/dte/generar"
@@ -67,7 +67,7 @@ def generate_dte_guiadespacho(
         files = [
             certificate_file(empresa_id),
             get_xml_file_tuple_for_request(
-                empresa_id, "CAF", CAF_step=caf_step, folio_or_sobre_count=folio
+                empresa_id, "CAF", id=caf_id, folio_or_sobre_count=folio
             ),
         ]
         headers = {"Authorization": AUTH}
@@ -189,7 +189,7 @@ def generate_dte_factura(
         print(context)
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
-        caf_step = generate_factura_params.caf_step
+        caf_id = generate_factura_params.caf_file_name
         datos_extra = generate_factura_params.datos_extra.dict()
         datos_extra = dict(datos_extra)
         versionDTE = generate_factura_params.version
@@ -209,8 +209,8 @@ def generate_dte_factura(
             get_xml_file_tuple_for_request(
                 empresa_id,
                 "CAF",
+                id=caf_id,
                 DTE_type="FA",
-                CAF_step=caf_step,
                 folio_or_sobre_count=folio,
             ),
         ]

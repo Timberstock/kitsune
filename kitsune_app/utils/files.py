@@ -10,25 +10,21 @@ from kitsune_app.setup.firebase import get_firebase_storage_bucket
 def get_xml_file_tuple_for_request(
     empresa_id,
     file_type,
-    CAF_step=0,
     DTE_type="GD",
     folio_or_sobre_count=0,
-    id="",
     file_tuple_name="file",
     version=0,  # This is only for the DTE that are repetidos
+    id="",  # For SOBRE is the file_name of the sobre, for CAF is the file_name of the corresponding CAF, for DTE it is not used
 ):
-    """Open the .xml file from cloud storage and return it in buffer.
-    Keep in mind that the CAF_step must be sync with the ObtainFoliosIn.amount in dte.py
-    """
-    if file_type == "CAF" and (DTE_type == "GD" or DTE_type == "FA"):
-        CAF_number = (folio_or_sobre_count - 1) // CAF_step
-        file_name = f"empresas/{empresa_id}/CAF/{DTE_type}/{CAF_number}.xml"
-    elif file_type == "DTE" and (DTE_type == "GD" or DTE_type == "FA"):
+    """Open the .xml file from cloud storage and return it in buffer."""
+    if file_type == "DTE" and (DTE_type == "GD" or DTE_type == "FA"):
         file_name = f"empresas/{empresa_id}/DTE/{DTE_type}/{folio_or_sobre_count}.xml"
         # Add the version to the DTE filename if it is > 0
         if version > 0:
             # Alter the filename to include the version number right before the extension .xml
             file_name = file_name.replace(".xml", f"_{version}.xml")
+    elif file_type == "CAF" and (DTE_type == "GD" or DTE_type == "FA"):
+        file_name = f"empresas/{empresa_id}/CAF/{DTE_type}/{id}"
     elif file_type == "SOBRE":
         file_name = f"empresas/{empresa_id}/SOBRES/{id}.xml"
 
