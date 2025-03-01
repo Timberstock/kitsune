@@ -14,14 +14,16 @@ def empresa_context() -> EmpresaContext:
 
 
 def document_to_guia(generate_dte_params: GenerateGuiaDespachoIn) -> dict:
-    """Dependency to set the generate_dte_params as a sendable guia de despacho"""
+    """Dependency to set the generate_dte_params as a sendable guia de despacho."""
+    # The generate_dte_factura_params name must match the name of the parameter in the endpoint
     guia_despacho = document_to_dict(generate_dte_params.dte)
     guia_despacho = clean_null_terms(guia_despacho)
     return guia_despacho
 
 
-def document_to_factura(generate_dte_params: GenerateFacturaIn) -> dict:
-    """Dependency to set the generate_dte_params as a sendable factura"""
-    factura = document_to_dict(generate_dte_params.dte)
+def document_to_factura(generate_dte_factura_params: GenerateFacturaIn) -> dict:
+    """Dependency to set the generate_dte_factura_params as a sendable factura."""
+    # The generate_dte_factura_params name must match the name of the parameter in the endpoint
+    factura = document_to_dict(generate_dte_factura_params.dte)
     factura = clean_null_terms(factura)
     return factura

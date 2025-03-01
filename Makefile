@@ -8,12 +8,12 @@ deploy:
 # Requests to the app will be served at http://localhost:8180/
 # To develop, remember to use the Dev Containers in VSCode extension, and attach VSCode to the running container so we can explore the libraries and the code
 # as it is installed in the container itself (e.g. we can explore firebase_admin library and get code suggestions)
-.PHONY: docker compose up
+.PHONY: docker-compose-up
 docker-compose-up:
 	docker compose up
 
 # Build with docker-compose
-.PHONY: docker compose build
+.PHONY: docker-compose-build
 docker-compose-build:
 	docker compose build
 

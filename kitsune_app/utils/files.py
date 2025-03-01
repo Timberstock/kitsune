@@ -55,6 +55,17 @@ def get_logo_base64(empresa_id: str):
     return logo_base64
 
 
+def get_logo_as_file_tuple(empresa_id: str):
+    """Open the .png file from cloud storage and return it in buffer."""
+    logo_file_name = f"empresas/{empresa_id}/logo.png"
+    logo_file = _read_from_bucket(logo_file_name)
+    logo_tuple_for_simpleAPI = (
+        "logo",
+        ("logo_empresa_for_simpleAPI.png", logo_file, "image/png"),
+    )
+    return logo_tuple_for_simpleAPI
+
+
 def certificate_file(empresa_id: str):
     """Open the .pfx file and return it in requests format"""
 

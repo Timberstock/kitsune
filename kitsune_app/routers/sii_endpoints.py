@@ -29,6 +29,7 @@ from kitsune_app.utils import (
     get_xml_file_tuple_for_request,
     upload_xml_string_to_bucket,
 )
+from kitsune_app.utils.files import get_logo_as_file_tuple
 
 
 router = APIRouter(tags=["SII"])
@@ -177,7 +178,7 @@ def generate_dte_guiadespacho(
 # Genera un DTE FACTURA en un archivo .xml
 @router.post("/dte/{empresa_id}/factura")
 def generate_dte_factura(
-    generate_factura_params: GenerateFacturaIn,
+    generate_dte_factura_params: GenerateFacturaIn,
     factura: dict = Depends(document_to_factura),
     context: EmpresaContext = Depends(empresa_context),
 ):
@@ -187,12 +188,13 @@ def generate_dte_factura(
     """
     try:
         print(context)
+        print(generate_dte_factura_params)
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
-        caf_id = generate_factura_params.caf_file_name
-        datos_extra = generate_factura_params.datos_extra.dict()
+        caf_id = generate_dte_factura_params.caf_file_name
+        datos_extra = generate_dte_factura_params.datos_extra.dict()
         datos_extra = dict(datos_extra)
-        versionDTE = generate_factura_params.version
+        versionDTE = generate_dte_factura_params.version
 
         url = "https://api.simpleapi.cl/api/v1/dte/generar"
         payload = {
@@ -245,7 +247,8 @@ def generate_dte_factura(
                     DTE_type="FA",
                     file_tuple_name="fileEnvio",
                 )
-                files = [fa_file]
+                empresa_logo_file = get_logo_as_file_tuple(empresa_id)
+                files = [fa_file, empresa_logo_file]
                 payload = {
                     "input": str(
                         {
@@ -343,6 +346,7 @@ def generate_sobre(
         empresa_id = context.empresa_id
         certificate = context.pfx_certificate
         versionGuia = generate_sobre_params.version
+        tipo_dte = generate_sobre_params.tipo_dte
         # SEND FROM CLOUD FUNCTIONS THIS INFO
         caratula_info = generate_sobre_params.caratula.dict()
         caratula = dict(caratula_info)
@@ -355,7 +359,11 @@ def generate_sobre(
         files = [certificate_file(empresa_id)]
         for folio in folios_sin_enviar:
             dte_file = get_xml_file_tuple_for_request(
-                empresa_id, "DTE", folio_or_sobre_count=folio, version=versionGuia
+                empresa_id,
+                "DTE",
+                DTE_type=tipo_dte,
+                folio_or_sobre_count=folio,
+                version=versionGuia,
             )
             files.append(dte_file)  # type: ignore
         headers = {"Authorization": AUTH}

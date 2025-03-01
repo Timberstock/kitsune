@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -22,15 +22,16 @@ class InfoEnvioIn(BaseModel):
 
 # GENERAR SOBRE
 class Caratula(BaseModel):
-    RutEmisor: Optional[str] = None
-    FechaResolucion: str
-    RutReceptor: str = "60803000-K"
+    FechaResolucion: str  # Format YYYY-MM-DD
     NumeroResolucion: int = 0
+    RutEmisor: Optional[str] = None
+    RutReceptor: str = "60803000-K"
 
 
 class GenerateSobreIn(BaseModel):
     folios: list
     sobre_id: str
+    tipo_dte: Literal["GD", "FA"]
     caratula: Caratula
     version: int = 0
 
@@ -45,7 +46,10 @@ class IdentificacionDTE(BaseModel):
     TipoDTE: int = 52
     Folio: int
     FechaEmision: str
-    TipoTraslado: int = 1  # 1: constituye venta, 2: venta por efectuar, 3: consignación
+    TipoTraslado: Optional[
+        int
+    ]  # 1: constituye venta, 2: venta por efectuar, 3: consignación
+
     # 4: entrega gratuita, 5: traslados internos,
     # 6: otros traslados no venta, 7: guia de devolucion,
     # 8: traslado exportacion, 9: venta exportacion
@@ -158,6 +162,6 @@ class GenerateGuiaDespachoIn(BaseModel):
 class GenerateFacturaIn(BaseModel):
     dte: Dte
     # pdf_html_string: str
-    version: int = 0
     datos_extra: Caratula
     caf_file_name: str
+    version: int = 0
