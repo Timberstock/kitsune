@@ -31,7 +31,6 @@ from kitsune_app.utils import (
 )
 from kitsune_app.utils.files import get_logo_as_file_tuple
 
-
 router = APIRouter(tags=["SII"])
 
 
@@ -96,21 +95,15 @@ def generate_dte_guiadespacho(
                 barcode_png_base64 = response_barcode.text
                 # Embed the image in the HTML string
                 pdf_html_string_with_barcode = pdf_html_string.replace(
-                    "</body>",
-                    "<p><br /></p>"
-                    '<div style="position: absolute; left: 187.5px">'
-                    f'<img src="data:image/png;base64,{barcode_png_base64}"'
-                    'style="width: 275px; height: 132px" />'
-                    "</div>"
-                    "</body>",
+                    "<REPLACE_BARCODE>",
+                    f'<img src="data:image/png;base64,{barcode_png_base64}" style="width: 275px; height: 132px" />',
                 )
 
                 # Get logo from Firebase Storage in base64 and replace it in the HTML
                 logo_base64 = get_logo_base64(empresa_id)
                 pdf_html_string_with_barcode = pdf_html_string_with_barcode.replace(
-                    '<img src="placeholder.png" alt="logo" />',
-                    f'<img src="data:image/png;base64,{logo_base64}"'
-                    'alt="logo" style="height: 80px"/>',
+                    "<REPLACE_LOGO>",
+                    f'<img src="data:image/png;base64,{logo_base64}" alt="logo" style="max-width: 150px; max-height: 100px;" />',
                 )
 
                 # Generate the PDF from the HTML string
@@ -134,8 +127,10 @@ def generate_dte_guiadespacho(
                 else:
                     response_to_firebase = {
                         "status_code": response_barcode.status_code,
-                        "message": f"[barcode]{response_barcode.reason}:"
-                        f'{response_barcode.text}"',
+                        "message": (
+                            f"[barcode]{response_barcode.reason}:"
+                            f'{response_barcode.text}"'
+                        ),
                     }
                     print(response_to_firebase)
                     return response_to_firebase
@@ -290,8 +285,10 @@ def generate_dte_factura(
                 else:
                     response_to_firebase = {
                         "status_code": pdf_response.status_code,
-                        "message": f"[PDF-SimpleAPI]{pdf_response.reason}:"
-                        f'{pdf_response.text}"',
+                        "message": (
+                            f"[PDF-SimpleAPI]{pdf_response.reason}:"
+                            f'{pdf_response.text}"'
+                        ),
                     }
                     print(response_to_firebase)
                     return response_to_firebase
